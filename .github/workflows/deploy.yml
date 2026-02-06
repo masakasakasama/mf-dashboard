@@ -1,0 +1,58 @@
+name: Scrape and Deploy
+
+on:
+  schedule:
+    - cron: '0 0 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+
+jobs:
+  scrape-and-deploy:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      
+      - name: Install Chrome
+        uses: browser-actions/setup-chrome@latest
+      
+      - name: Install Scraper Dependencies
+        working-directory: scraper
+        run: npm install
+      
+      - name: Run Scraper
+        working-directory: scraper
+        env:
+          MF_EMAIL: ${{ secrets.MF_EMAIL }}
+          MF_PASSWORD: ${{ secrets.MF_PASSWORD }}
+        run: npm run scrape
+        continue-on-error: true
+      
+      - name: Install Dashboard Dependencies
+        working-directory: dashboard
+        run: npm install
+      
+      - name: Build Dashboard
+        working-directory: dashboard
+        run: npm run build
+      
+      - name: Setup Pages
+        uses: actions/configure-pages@v4
+      
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: dashboard/dist
+      
+      - name: Deploy to GitHub Pages
+        uses: actions/deploy-pages@v4
