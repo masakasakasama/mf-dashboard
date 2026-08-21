@@ -1,0 +1,33 @@
+{
+  "updatedAt": "2026-08-22T00:15:00+09:00",
+  "title": "収支ダッシュボード 最新版",
+  "subtitle": "8/25給与反映、財布2万円は除外、JALカードSuicaゴールドはView枠として二重計上なし",
+  "start": {
+    "date": "5/14",
+    "label": "起点残高",
+    "balance": 1572156,
+    "note": "今日時点の残高"
+  },
+  "events": [
+    { "date": "5/25", "label": "5月給与", "amount": 650000, "type": "income", "note": "手取り、出張費込み" },
+    { "date": "5/26", "label": "三井住友カード 5月分", "amount": -797266, "type": "card", "note": "ポイント還元後" },
+    { "date": "5/26", "label": "Amazon旧クラシック", "amount": -112256, "type": "card", "note": "Galaxy 2回目完済" },
+    { "date": "5月末", "label": "固定費", "amount": -150000, "type": "fixed", "note": "家賃、光熱費、通信など" },
+    { "date": "6/25", "label": "6月給与", "amount": 600000, "type": "income", "note": "手取り想定" },
+    { "date": "6/26", "label": "三井住友カード 6月分", "amount": -580147, "type": "card", "note": "最新Vpass反映" },
+    { "date": "6月末", "label": "固定費", "amount": -150000, "type": "fixed", "note": "6月分" },
+    { "date": "7/7", "label": "JALカードSuicaゴールド", "amount": -45984, "type": "card", "note": "Viewカード枠、二重計上なし" },
+    { "date": "7/15", "label": "賞与", "amount": 570000, "type": "income", "note": "手取り想定" },
+    { "date": "7/25", "label": "7月給与", "amount": 549300, "type": "income", "note": "手取り想定" },
+    { "date": "7/27", "label": "7月固定費", "amount": -150000, "type": "fixed", "note": "7月分" },
+    { "date": "7/27", "label": "三井住友カード 7月分", "amount": -300000, "type": "card", "note": "仮置き" },
+    { "date": "7月中", "label": "婚約指輪", "amount": -250000, "type": "special", "note": "別建て支出" },
+    { "date": "8/25", "label": "8月給与", "amount": 658354, "type": "income", "note": "支給明細の差引支給額" }
+  ],
+  "flags": [
+    "財布2万円は今回の計算から除外",
+    "JALカードSuicaゴールドはViewカード枠として扱い、Viewカード1万円は削除",
+    "6/26三井住友カードは580,147円で反映",
+    "8/25給与は658,354円で反映"
+  ]
+}
