@@ -7,7 +7,7 @@ For routine finance updates, do not edit React code.
 Only edit these JSON files:
 
 - `dashboard/public/cashflow.json` for balances, salaries, card bills, fixed costs, bonuses, and one-off expenses
-- `dashboard/public/subscriptions.json` for subscription plans, prices, splits, tax, FX, and billing cycle
+- `dashboard/public/subscriptions.json` for subscription plans, prices, splits, tax, FX, billing cycle, and default contract status
 
 After editing JSON, commit directly to `main`. A push to `main` automatically builds and deploys the GitHub Pages app.
 
@@ -28,6 +28,11 @@ After editing JSON, commit directly to `main`. A push to `main` automatically bu
 - `split` is the number of people sharing the cost. Example: Netflix split 50/50 uses `split: 2`
 - For USD subscriptions, use `taxRate` and `fxRate`
 - If the actual JPY charge is known, set `monthlyJpyOverride` and it takes priority over FX calculation
+- `status` must be one of `active`, `review`, `cancelled`
+  - `active`: currently subscribed and counted in monthly/annual cost
+  - `review`: still subscribed, counted in cost, but shown as a review candidate
+  - `cancelled`: excluded from current subscription cost
+- Drag-and-drop changes in the app are stored only in that browser's localStorage. To make a status canonical across devices, update `status` in `subscriptions.json`
 - Update `updatedAt` and `note` when plan or pricing assumptions change
 
 ## Validation
