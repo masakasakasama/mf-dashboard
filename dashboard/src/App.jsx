@@ -13,15 +13,23 @@ import {
 import {
   AlertTriangle,
   Banknote,
+  Bot,
   CalendarDays,
   CheckCircle2,
   CreditCard,
   Gift,
+  GripVertical,
   Home,
+  Music,
   PiggyBank,
+  PlayCircle,
   RefreshCw,
+  RotateCcw,
+  ShoppingBag,
   TrendingUp,
+  Users,
   Wallet,
+  XCircle,
 } from 'lucide-react';
 
 const formatCurrency = (value) => new Intl.NumberFormat('ja-JP', { maximumFractionDigits: 0 }).format(value) + '円';
@@ -34,6 +42,44 @@ const typeMeta = {
   fixed: { label: '固定費', color: 'text-orange-700', bg: 'bg-orange-50', Icon: Home },
   special: { label: '特別支出', color: 'text-purple-700', bg: 'bg-purple-50', Icon: Gift },
   base: { label: '起点', color: 'text-blue-700', bg: 'bg-blue-50', Icon: Wallet },
+};
+
+const SUBSCRIPTION_STATUSES = [
+  {
+    id: 'active',
+    label: '契約中',
+    description: '現在支払っている',
+    Icon: CheckCircle2,
+    column: 'border-emerald-200 bg-emerald-50/70',
+    badge: 'bg-emerald-100 text-emerald-800',
+    icon: 'text-emerald-700',
+  },
+  {
+    id: 'review',
+    label: '見直し候補',
+    description: 'まだ課金中、要判断',
+    Icon: AlertTriangle,
+    column: 'border-amber-200 bg-amber-50/70',
+    badge: 'bg-amber-100 text-amber-800',
+    icon: 'text-amber-700',
+  },
+  {
+    id: 'cancelled',
+    label: '解約済み',
+    description: '支出集計から除外',
+    Icon: XCircle,
+    column: 'border-slate-300 bg-slate-100/80',
+    badge: 'bg-slate-200 text-slate-700',
+    icon: 'text-slate-500',
+  },
+];
+
+const SUBSCRIPTION_BRANDS = {
+  Netflix: { mark: 'N', className: 'bg-red-600 text-white', Icon: null },
+  Spotify: { mark: null, className: 'bg-emerald-500 text-white', Icon: Music },
+  'YouTube Premium': { mark: null, className: 'bg-red-500 text-white', Icon: PlayCircle },
+  'Amazon Prime': { mark: null, className: 'bg-sky-500 text-white', Icon: ShoppingBag },
+  'ChatGPT Plus': { mark: null, className: 'bg-slate-900 text-white', Icon: Bot },
 };
 
 function buildTimeline(data) {
@@ -130,10 +176,82 @@ function CustomTooltip({ active, payload }) {
   );
 }
 
+function SubscriptionLogo({ name }) {
+  const brand = SUBSCRIPTION_BRANDS[name] || { mark: name?.slice(0, 1) || '?', className: 'bg-violet-600 text-white', Icon: null };
+  const Icon = brand.Icon;
+
+  return (
+    <div className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl shadow-sm ${brand.className}`}>
+      {Icon ? <Icon className="h-6 w-6" /> : <span className="text-xl font-black">{brand.mark}</span>}
+    </div>
+  );
+}
+
+function SubscriptionCard({ sub, status, onDragStart, onStatusChange }) {
+  return (
+    <article
+      draggable
+      onDragStart={(event) => onDragStart(event, sub.name)}
+      className="group cursor-grab rounded-2xl border border-white/80 bg-white p-3 shadow-md shadow-slate-200/60 transition hover:-translate-y-0.5 hover:shadow-lg active:cursor-grabbing"
+    >
+      <div className="flex items-start gap-3">
+        <SubscriptionLogo name={sub.name} />
+        <div className="min-w-0 flex-1">
+          <div className="flex items-start justify-between gap-2">
+            <div>
+              <div className="truncate text-base font-black text-slate-900">{sub.name}</div>
+              <div className="mt-0.5 text-xs font-semibold text-slate-500">{sub.plan}</div>
+            </div>
+            <GripVertical className="h-5 w-5 shrink-0 text-slate-300 group-hover:text-slate-500" />
+          </div>
+
+          <div className="mt-3 grid grid-cols-2 gap-2">
+            <div className="rounded-xl bg-violet-50 px-3 py-2">
+              <div className="text-[11px] font-bold text-violet-600">自分の月額</div>
+              <div className="mt-0.5 text-lg font-black text-violet-950">{formatCurrency(sub.monthlyJpy)}</div>
+            </div>
+            <div className="rounded-xl bg-slate-50 px-3 py-2">
+              <div className="text-[11px] font-bold text-slate-500">年間換算</div>
+              <div className="mt-0.5 text-lg font-black text-slate-900">{formatCurrency(sub.annualJpy)}</div>
+            </div>
+          </div>
+
+          <div className="mt-2 flex flex-wrap gap-1.5 text-[11px] font-bold text-slate-600">
+            <span className="rounded-full bg-slate-100 px-2 py-1">{originalSubscriptionPrice(sub)}</span>
+            {sub.split > 1 ? (
+              <span className="inline-flex items-center gap-1 rounded-full bg-blue-50 px-2 py-1 text-blue-700">
+                <Users className="h-3 w-3" />1/{sub.split}負担
+              </span>
+            ) : null}
+            {sub.billing === 'annual' ? <span className="rounded-full bg-amber-50 px-2 py-1 text-amber-700">年払い</span> : null}
+            {sub.currency === 'USD' ? <span className="rounded-full bg-emerald-50 px-2 py-1 text-emerald-700">USD換算</span> : null}
+          </div>
+        </div>
+      </div>
+
+      <div className="mt-3 grid grid-cols-3 gap-1 rounded-xl bg-slate-100 p-1 md:hidden">
+        {SUBSCRIPTION_STATUSES.map((item) => (
+          <button
+            key={item.id}
+            type="button"
+            onClick={() => onStatusChange(sub.name, item.id)}
+            className={`rounded-lg px-2 py-1.5 text-[11px] font-black transition ${status === item.id ? item.badge : 'text-slate-500'}`}
+          >
+            {item.label}
+          </button>
+        ))}
+      </div>
+    </article>
+  );
+}
+
 export default function MFDashboard() {
   const [cashflow, setCashflow] = useState(null);
   const [subscriptions, setSubscriptions] = useState(null);
   const [error, setError] = useState('');
+  const [subscriptionBoard, setSubscriptionBoard] = useState({});
+  const [draggedSubscription, setDraggedSubscription] = useState('');
+  const [dragOverStatus, setDragOverStatus] = useState('');
 
   useEffect(() => {
     Promise.all([
@@ -153,15 +271,40 @@ export default function MFDashboard() {
       .catch((err) => setError(err.message));
   }, []);
 
+  useEffect(() => {
+    if (!subscriptions) return;
+
+    const defaults = Object.fromEntries(
+      subscriptions.subscriptions.map((sub) => [sub.name, sub.status || 'active'])
+    );
+
+    try {
+      const saved = JSON.parse(localStorage.getItem('mf-dashboard-subscription-board-v1') || '{}');
+      setSubscriptionBoard({ ...defaults, ...saved });
+    } catch {
+      setSubscriptionBoard(defaults);
+    }
+  }, [subscriptions]);
+
+  useEffect(() => {
+    if (!subscriptions || Object.keys(subscriptionBoard).length === 0) return;
+    localStorage.setItem('mf-dashboard-subscription-board-v1', JSON.stringify(subscriptionBoard));
+  }, [subscriptionBoard, subscriptions]);
+
   const timeline = useMemo(() => (cashflow ? buildTimeline(cashflow) : []), [cashflow]);
   const monthRows = useMemo(() => (cashflow ? buildMonthRows(cashflow.events) : []), [cashflow]);
   const subscriptionRows = useMemo(() => {
     if (!subscriptions) return [];
     return subscriptions.subscriptions.map((sub) => {
       const monthlyJpy = subscriptionMonthlyJpy(sub);
-      return { ...sub, monthlyJpy, annualJpy: monthlyJpy * 12 };
+      return {
+        ...sub,
+        monthlyJpy,
+        annualJpy: monthlyJpy * 12,
+        boardStatus: subscriptionBoard[sub.name] || sub.status || 'active',
+      };
     });
-  }, [subscriptions]);
+  }, [subscriptions, subscriptionBoard]);
 
   if (error) {
     return (
@@ -189,8 +332,42 @@ export default function MFDashboard() {
   const incomeTotal = cashflow.events.filter((e) => e.amount > 0).reduce((sum, e) => sum + e.amount, 0);
   const expenseTotal = Math.abs(cashflow.events.filter((e) => e.amount < 0).reduce((sum, e) => sum + e.amount, 0));
   const netChange = finalPoint.balance - startBalance;
-  const subscriptionMonthlyTotal = subscriptionRows.reduce((sum, sub) => sum + sub.monthlyJpy, 0);
-  const subscriptionAnnualTotal = subscriptionRows.reduce((sum, sub) => sum + sub.annualJpy, 0);
+
+  const paidSubscriptionRows = subscriptionRows.filter((sub) => sub.boardStatus !== 'cancelled');
+  const subscriptionMonthlyTotal = paidSubscriptionRows.reduce((sum, sub) => sum + sub.monthlyJpy, 0);
+  const subscriptionAnnualTotal = paidSubscriptionRows.reduce((sum, sub) => sum + sub.annualJpy, 0);
+  const reviewMonthlyTotal = subscriptionRows
+    .filter((sub) => sub.boardStatus === 'review')
+    .reduce((sum, sub) => sum + sub.monthlyJpy, 0);
+  const cancelledMonthlySavings = subscriptionRows
+    .filter((sub) => sub.boardStatus === 'cancelled')
+    .reduce((sum, sub) => sum + sub.monthlyJpy, 0);
+
+  const setSubscriptionStatus = (name, status) => {
+    setSubscriptionBoard((current) => ({ ...current, [name]: status }));
+  };
+
+  const handleDragStart = (event, name) => {
+    setDraggedSubscription(name);
+    event.dataTransfer.effectAllowed = 'move';
+    event.dataTransfer.setData('text/plain', name);
+  };
+
+  const handleDrop = (event, status) => {
+    event.preventDefault();
+    const name = event.dataTransfer.getData('text/plain') || draggedSubscription;
+    if (name) setSubscriptionStatus(name, status);
+    setDraggedSubscription('');
+    setDragOverStatus('');
+  };
+
+  const resetSubscriptionBoard = () => {
+    const defaults = Object.fromEntries(
+      subscriptions.subscriptions.map((sub) => [sub.name, sub.status || 'active'])
+    );
+    localStorage.removeItem('mf-dashboard-subscription-board-v1');
+    setSubscriptionBoard(defaults);
+  };
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-900">
@@ -222,56 +399,111 @@ export default function MFDashboard() {
           </section>
 
           <section className="rounded-[26px] border border-violet-200 bg-white p-4 shadow-xl sm:p-6">
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+            <div className="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
               <div>
-                <h2 className="flex items-center gap-2 text-2xl font-black text-slate-900">
+                <div className="flex items-center gap-2">
                   <CreditCard className="h-6 w-6 text-violet-700" />
-                  {subscriptions.title}
-                </h2>
-                <p className="mt-1 text-sm font-medium text-slate-500">{subscriptions.note}</p>
-              </div>
-              <div className="grid grid-cols-2 gap-2">
-                <div className="rounded-2xl bg-violet-50 px-4 py-3 text-right ring-1 ring-violet-200">
-                  <div className="text-xs font-bold text-violet-700">月額換算</div>
-                  <div className="text-2xl font-black text-violet-950">{formatCurrency(subscriptionMonthlyTotal)}</div>
+                  <h2 className="text-2xl font-black text-slate-900">{subscriptions.title}</h2>
                 </div>
-                <div className="rounded-2xl bg-slate-100 px-4 py-3 text-right ring-1 ring-slate-200">
-                  <div className="text-xs font-bold text-slate-600">年間換算</div>
-                  <div className="text-2xl font-black text-slate-950">{formatCurrency(subscriptionAnnualTotal)}</div>
+                <p className="mt-1 max-w-3xl text-sm font-medium leading-6 text-slate-500">{subscriptions.note}</p>
+                <div className="mt-2 inline-flex items-center gap-2 rounded-full bg-violet-50 px-3 py-1.5 text-xs font-black text-violet-700 ring-1 ring-violet-200">
+                  <GripVertical className="h-3.5 w-3.5" />
+                  カードをドラッグして契約状態を変更、端末内に自動保存
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+                <div className="rounded-2xl bg-violet-50 px-3 py-3 text-right ring-1 ring-violet-200">
+                  <div className="text-[11px] font-bold text-violet-700">実負担 月額</div>
+                  <div className="text-xl font-black text-violet-950">{formatCurrency(subscriptionMonthlyTotal)}</div>
+                </div>
+                <div className="rounded-2xl bg-slate-100 px-3 py-3 text-right ring-1 ring-slate-200">
+                  <div className="text-[11px] font-bold text-slate-600">年間換算</div>
+                  <div className="text-xl font-black text-slate-950">{formatCurrency(subscriptionAnnualTotal)}</div>
+                </div>
+                <div className="rounded-2xl bg-amber-50 px-3 py-3 text-right ring-1 ring-amber-200">
+                  <div className="text-[11px] font-bold text-amber-700">見直し候補</div>
+                  <div className="text-xl font-black text-amber-950">{formatCurrency(reviewMonthlyTotal)}/月</div>
+                </div>
+                <div className="rounded-2xl bg-emerald-50 px-3 py-3 text-right ring-1 ring-emerald-200">
+                  <div className="text-[11px] font-bold text-emerald-700">解約済み削減</div>
+                  <div className="text-xl font-black text-emerald-950">{formatCurrency(cancelledMonthlySavings)}/月</div>
                 </div>
               </div>
             </div>
 
-            <div className="mt-5 overflow-x-auto">
-              <table className="w-full min-w-[760px] border-separate border-spacing-0 overflow-hidden rounded-2xl text-sm">
-                <thead>
-                  <tr className="bg-violet-800 text-white">
-                    <th className="px-4 py-3 text-left">サービス</th>
-                    <th className="px-4 py-3 text-left">プラン</th>
-                    <th className="px-4 py-3 text-right">契約額</th>
-                    <th className="px-4 py-3 text-center">負担</th>
-                    <th className="px-4 py-3 text-right">月額換算</th>
-                    <th className="px-4 py-3 text-right">年間換算</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {subscriptionRows.map((sub) => (
-                    <tr key={sub.name} className="odd:bg-white even:bg-violet-50/40">
-                      <td className="border-b border-slate-200 px-4 py-3 font-black text-slate-900">{sub.name}</td>
-                      <td className="border-b border-slate-200 px-4 py-3 text-slate-600">{sub.plan}</td>
-                      <td className="border-b border-slate-200 px-4 py-3 text-right font-bold text-slate-700">
-                        {originalSubscriptionPrice(sub)}
-                        {sub.taxRate ? <div className="text-xs font-medium text-slate-400">税 {Math.round(sub.taxRate * 100)}%</div> : null}
-                      </td>
-                      <td className="border-b border-slate-200 px-4 py-3 text-center font-bold text-slate-700">{sub.split > 1 ? `1/${sub.split}` : '本人'}</td>
-                      <td className="border-b border-slate-200 px-4 py-3 text-right font-black text-violet-800">{formatCurrency(sub.monthlyJpy)}</td>
-                      <td className="border-b border-slate-200 px-4 py-3 text-right font-black text-slate-900">{formatCurrency(sub.annualJpy)}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+            <div className="mt-5 grid gap-3 lg:grid-cols-3">
+              {SUBSCRIPTION_STATUSES.map((status) => {
+                const cards = subscriptionRows.filter((sub) => sub.boardStatus === status.id);
+                const StatusIcon = status.Icon;
+                const statusMonthly = cards.reduce((sum, sub) => sum + sub.monthlyJpy, 0);
+                const isOver = dragOverStatus === status.id;
+
+                return (
+                  <div
+                    key={status.id}
+                    onDragOver={(event) => {
+                      event.preventDefault();
+                      event.dataTransfer.dropEffect = 'move';
+                      setDragOverStatus(status.id);
+                    }}
+                    onDragLeave={(event) => {
+                      if (!event.currentTarget.contains(event.relatedTarget)) setDragOverStatus('');
+                    }}
+                    onDrop={(event) => handleDrop(event, status.id)}
+                    className={`min-h-[250px] rounded-3xl border-2 p-3 transition ${status.column} ${isOver ? 'scale-[1.01] border-violet-500 ring-4 ring-violet-100' : ''}`}
+                  >
+                    <div className="mb-3 flex items-center justify-between gap-2 px-1">
+                      <div className="flex items-center gap-2">
+                        <span className={`flex h-9 w-9 items-center justify-center rounded-xl bg-white shadow-sm ${status.icon}`}>
+                          <StatusIcon className="h-5 w-5" />
+                        </span>
+                        <div>
+                          <div className="text-sm font-black text-slate-900">{status.label}</div>
+                          <div className="text-[11px] font-semibold text-slate-500">{status.description}</div>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <div className={`inline-flex rounded-full px-2 py-1 text-[11px] font-black ${status.badge}`}>{cards.length}件</div>
+                        <div className="mt-1 text-[11px] font-bold text-slate-500">{formatCurrency(statusMonthly)}/月</div>
+                      </div>
+                    </div>
+
+                    <div className="space-y-2">
+                      {cards.map((sub) => (
+                        <SubscriptionCard
+                          key={sub.name}
+                          sub={sub}
+                          status={status.id}
+                          onDragStart={handleDragStart}
+                          onStatusChange={setSubscriptionStatus}
+                        />
+                      ))}
+
+                      {cards.length === 0 ? (
+                        <div className={`flex min-h-[150px] items-center justify-center rounded-2xl border-2 border-dashed text-center text-xs font-bold ${isOver ? 'border-violet-400 bg-violet-50 text-violet-700' : 'border-slate-300/70 text-slate-400'}`}>
+                          ここにドロップ
+                        </div>
+                      ) : null}
+                    </div>
+                  </div>
+                );
+              })}
             </div>
-            <div className="mt-3 text-xs font-medium text-slate-500">サブスク費はここでは別集計。cashflow.json の固定費に含める場合は二重計上しないこと</div>
+
+            <div className="mt-4 flex flex-col gap-2 border-t border-slate-200 pt-4 sm:flex-row sm:items-center sm:justify-between">
+              <div className="text-xs font-medium text-slate-500">
+                契約中と見直し候補は支出に算入、解約済みは除外。スマホでは各カード下の状態ボタンでも変更可能
+              </div>
+              <button
+                type="button"
+                onClick={resetSubscriptionBoard}
+                className="inline-flex items-center justify-center gap-2 rounded-xl bg-slate-100 px-3 py-2 text-xs font-black text-slate-700 transition hover:bg-slate-200"
+              >
+                <RotateCcw className="h-4 w-4" />
+                JSONの初期状態に戻す
+              </button>
+            </div>
           </section>
 
           <section className="rounded-[26px] border border-slate-200 bg-white p-4 shadow-xl sm:p-6">
