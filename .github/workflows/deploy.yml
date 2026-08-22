@@ -1,6 +1,13 @@
 name: Scrape and Deploy
 
 on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'dashboard/**'
+      - 'AGENTS.md'
+      - '.github/workflows/deploy.yml'
   schedule:
     - cron: '0 0 * * *'
   workflow_dispatch:
@@ -13,46 +20,49 @@ permissions:
 jobs:
   scrape-and-deploy:
     runs-on: ubuntu-latest
-    
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-      
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '20'
-      
+
       - name: Install Chrome
+        if: github.event_name != 'push'
         uses: browser-actions/setup-chrome@latest
-      
+
       - name: Install Scraper Dependencies
+        if: github.event_name != 'push'
         run: npm install
         working-directory: scraper
-      
+
       - name: Run Scraper
+        if: github.event_name != 'push'
         working-directory: scraper
         env:
           MF_EMAIL: ${{ secrets.MF_EMAIL }}
           MF_PASSWORD: ${{ secrets.MF_PASSWORD }}
         run: npm run scrape
         continue-on-error: true
-      
+
       - name: Install Dashboard Dependencies
         run: npm install
         working-directory: dashboard
-      
+
       - name: Build Dashboard
         run: npm run build
         working-directory: dashboard
-      
+
       - name: Setup Pages
         uses: actions/configure-pages@v4
-      
+
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
           path: dashboard/dist
-      
+
       - name: Deploy to GitHub Pages
         uses: actions/deploy-pages@v4
