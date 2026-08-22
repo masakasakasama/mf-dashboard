@@ -4,7 +4,6 @@ import {
   AreaChart,
   CartesianGrid,
   Line,
-  LineChart,
   ReferenceLine,
   ResponsiveContainer,
   Tooltip,
@@ -25,45 +24,16 @@ import {
   Wallet,
 } from 'lucide-react';
 
-const FALLBACK_DATA = {
-  updatedAt: '2026-08-22T00:15:00+09:00',
-  title: '収支ダッシュボード 最新版',
-  subtitle: '8/25給与反映、財布2万円は除外、JALカードSuicaゴールドはView枠として二重計上なし',
-  start: { date: '5/14', label: '起点残高', balance: 1572156, note: '今日時点の残高' },
-  events: [
-    { date: '5/25', label: '5月給与', amount: 650000, type: 'income', note: '手取り、出張費込み' },
-    { date: '5/26', label: '三井住友カード 5月分', amount: -797266, type: 'card', note: 'ポイント還元後' },
-    { date: '5/26', label: 'Amazon旧クラシック', amount: -112256, type: 'card', note: 'Galaxy 2回目完済' },
-    { date: '5月末', label: '固定費', amount: -150000, type: 'fixed', note: '家賃、光熱費、通信など' },
-    { date: '6/25', label: '6月給与', amount: 600000, type: 'income', note: '手取り想定' },
-    { date: '6/26', label: '三井住友カード 6月分', amount: -580147, type: 'card', note: '最新Vpass反映' },
-    { date: '6月末', label: '固定費', amount: -150000, type: 'fixed', note: '6月分' },
-    { date: '7/7', label: 'JALカードSuicaゴールド', amount: -45984, type: 'card', note: 'Viewカード枠、二重計上なし' },
-    { date: '7/15', label: '賞与', amount: 570000, type: 'income', note: '手取り想定' },
-    { date: '7/25', label: '7月給与', amount: 549300, type: 'income', note: '手取り想定' },
-    { date: '7/27', label: '7月固定費', amount: -150000, type: 'fixed', note: '7月分' },
-    { date: '7/27', label: '三井住友カード 7月分', amount: -300000, type: 'card', note: '仮置き' },
-    { date: '7月中', label: '婚約指輪', amount: -250000, type: 'special', note: '別建て支出' },
-    { date: '8/25', label: '8月給与', amount: 658354, type: 'income', note: '支給明細の差引支給額' },
-  ],
-  flags: [
-    '財布2万円は今回の計算から除外',
-    'JALカードSuicaゴールドはViewカード枠として扱い、Viewカード1万円は削除',
-    '6/26三井住友カードは580,147円で反映',
-    '8/25給与は658,354円で反映',
-  ],
-};
-
-const formatCurrency = (value) => new Intl.NumberFormat('ja-JP').format(value) + '円';
+const formatCurrency = (value) => new Intl.NumberFormat('ja-JP', { maximumFractionDigits: 0 }).format(value) + '円';
 const formatSigned = (value) => `${value >= 0 ? '+' : ''}${formatCurrency(value)}`;
 const formatShort = (value) => `${(value / 10000).toFixed(1)}万`;
 
 const typeMeta = {
-  income: { label: '収入', color: 'text-emerald-700', bg: 'bg-emerald-50', border: 'border-emerald-200', Icon: Banknote },
-  card: { label: 'カード', color: 'text-rose-700', bg: 'bg-rose-50', border: 'border-rose-200', Icon: CreditCard },
-  fixed: { label: '固定費', color: 'text-orange-700', bg: 'bg-orange-50', border: 'border-orange-200', Icon: Home },
-  special: { label: '特別支出', color: 'text-purple-700', bg: 'bg-purple-50', border: 'border-purple-200', Icon: Gift },
-  base: { label: '起点', color: 'text-blue-700', bg: 'bg-blue-50', border: 'border-blue-200', Icon: Wallet },
+  income: { label: '収入', color: 'text-emerald-700', bg: 'bg-emerald-50', Icon: Banknote },
+  card: { label: 'カード', color: 'text-rose-700', bg: 'bg-rose-50', Icon: CreditCard },
+  fixed: { label: '固定費', color: 'text-orange-700', bg: 'bg-orange-50', Icon: Home },
+  special: { label: '特別支出', color: 'text-purple-700', bg: 'bg-purple-50', Icon: Gift },
+  base: { label: '起点', color: 'text-blue-700', bg: 'bg-blue-50', Icon: Wallet },
 };
 
 function buildTimeline(data) {
@@ -75,11 +45,55 @@ function buildTimeline(data) {
     type: 'base',
     note: data.start.note,
   };
+
   return data.events.reduce((items, event) => {
     const previous = items[items.length - 1].balance;
     items.push({ ...event, balance: previous + event.amount });
     return items;
   }, [first]);
+}
+
+function getMonthLabel(date) {
+  const slash = String(date).match(/^(\d{1,2})\//);
+  if (slash) return `${Number(slash[1])}月`;
+  const jp = String(date).match(/^(\d{1,2})月/);
+  if (jp) return `${Number(jp[1])}月`;
+  return 'その他';
+}
+
+function buildMonthRows(events) {
+  const map = new Map();
+
+  events.forEach((event) => {
+    const month = getMonthLabel(event.date);
+    if (!map.has(month)) map.set(month, { month, income: 0, expense: 0 });
+    const row = map.get(month);
+    if (event.amount >= 0) row.income += event.amount;
+    else row.expense += Math.abs(event.amount);
+  });
+
+  return [...map.values()]
+    .map((row) => ({ ...row, net: row.income - row.expense }))
+    .sort((a, b) => parseInt(a.month, 10) - parseInt(b.month, 10));
+}
+
+function subscriptionMonthlyJpy(sub) {
+  if (Number.isFinite(sub.monthlyJpyOverride)) return sub.monthlyJpyOverride;
+
+  const split = sub.split || 1;
+  const taxMultiplier = 1 + (sub.taxRate || 0);
+  let amountJpy = sub.price;
+
+  if (sub.currency === 'USD') amountJpy = sub.price * taxMultiplier * (sub.fxRate || 1);
+  if (sub.billing === 'annual') amountJpy /= 12;
+
+  return amountJpy / split;
+}
+
+function originalSubscriptionPrice(sub) {
+  const amount = sub.currency === 'USD' ? `$${sub.price}` : formatCurrency(sub.price);
+  const cycle = sub.billing === 'annual' ? '年' : '月';
+  return `${amount}/${cycle}`;
 }
 
 function SummaryCard({ title, value, sub, tone = 'blue', Icon }) {
@@ -89,6 +103,7 @@ function SummaryCard({ title, value, sub, tone = 'blue', Icon }) {
     green: 'from-emerald-50 to-green-50 border-emerald-200 text-emerald-900',
     purple: 'from-violet-50 to-purple-50 border-violet-200 text-violet-900',
   };
+
   return (
     <div className={`rounded-2xl border bg-gradient-to-br ${tones[tone]} p-4 shadow-sm`}>
       <div className="flex items-center justify-between gap-3">
@@ -104,6 +119,7 @@ function SummaryCard({ title, value, sub, tone = 'blue', Icon }) {
 function CustomTooltip({ active, payload }) {
   if (!active || !payload?.length) return null;
   const item = payload[0].payload;
+
   return (
     <div className="rounded-xl border border-slate-200 bg-white p-3 shadow-xl">
       <div className="text-sm font-bold text-slate-900">{item.date} {item.label}</div>
@@ -115,39 +131,66 @@ function CustomTooltip({ active, payload }) {
 }
 
 export default function MFDashboard() {
-  const [cashflow, setCashflow] = useState(FALLBACK_DATA);
-  const [loadedFromJson, setLoadedFromJson] = useState(false);
+  const [cashflow, setCashflow] = useState(null);
+  const [subscriptions, setSubscriptions] = useState(null);
+  const [error, setError] = useState('');
 
   useEffect(() => {
-    fetch(`${import.meta.env.BASE_URL}cashflow.json`, { cache: 'no-store' })
-      .then((res) => {
+    Promise.all([
+      fetch(`${import.meta.env.BASE_URL}cashflow.json`, { cache: 'no-store' }).then((res) => {
         if (!res.ok) throw new Error('cashflow.json not found');
         return res.json();
+      }),
+      fetch(`${import.meta.env.BASE_URL}subscriptions.json`, { cache: 'no-store' }).then((res) => {
+        if (!res.ok) throw new Error('subscriptions.json not found');
+        return res.json();
+      }),
+    ])
+      .then(([cashflowJson, subscriptionsJson]) => {
+        setCashflow(cashflowJson);
+        setSubscriptions(subscriptionsJson);
       })
-      .then((json) => {
-        setCashflow(json);
-        setLoadedFromJson(true);
-      })
-      .catch(() => {
-        setCashflow(FALLBACK_DATA);
-        setLoadedFromJson(false);
-      });
+      .catch((err) => setError(err.message));
   }, []);
 
-  const timeline = useMemo(() => buildTimeline(cashflow), [cashflow]);
+  const timeline = useMemo(() => (cashflow ? buildTimeline(cashflow) : []), [cashflow]);
+  const monthRows = useMemo(() => (cashflow ? buildMonthRows(cashflow.events) : []), [cashflow]);
+  const subscriptionRows = useMemo(() => {
+    if (!subscriptions) return [];
+    return subscriptions.subscriptions.map((sub) => {
+      const monthlyJpy = subscriptionMonthlyJpy(sub);
+      return { ...sub, monthlyJpy, annualJpy: monthlyJpy * 12 };
+    });
+  }, [subscriptions]);
+
+  if (error) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-slate-950 p-6 text-white">
+        <div className="max-w-lg rounded-3xl border border-rose-800 bg-rose-950/40 p-6">
+          <div className="text-xl font-black">データ読み込みエラー</div>
+          <div className="mt-2 text-sm text-rose-100">{error}</div>
+          <div className="mt-4 text-xs text-rose-200">cashflow.json と subscriptions.json を確認</div>
+        </div>
+      </div>
+    );
+  }
+
+  if (!cashflow || !subscriptions) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-slate-950 text-white">
+        <RefreshCw className="h-8 w-8 animate-spin text-blue-300" />
+      </div>
+    );
+  }
+
   const startBalance = cashflow.start.balance;
-  const minPoint = useMemo(() => timeline.reduce((min, item) => (item.balance < min.balance ? item : min), timeline[0]), [timeline]);
+  const minPoint = timeline.reduce((min, item) => (item.balance < min.balance ? item : min), timeline[0]);
   const finalPoint = timeline[timeline.length - 1];
   const incomeTotal = cashflow.events.filter((e) => e.amount > 0).reduce((sum, e) => sum + e.amount, 0);
   const expenseTotal = Math.abs(cashflow.events.filter((e) => e.amount < 0).reduce((sum, e) => sum + e.amount, 0));
   const netChange = finalPoint.balance - startBalance;
-
-  const monthRows = [
-    { month: '5月', income: 650000, expense: 797266 + 112256 + 150000 },
-    { month: '6月', income: 600000, expense: 580147 + 150000 },
-    { month: '7月', income: 570000 + 549300, expense: 45984 + 150000 + 300000 + 250000 },
-    { month: '8月', income: 658354, expense: 0 },
-  ].map((m) => ({ ...m, net: m.income - m.expense }));
+  const subscriptionMonthlyTotal = subscriptionRows.reduce((sum, sub) => sum + sub.monthlyJpy, 0);
+  const subscriptionAnnualTotal = subscriptionRows.reduce((sum, sub) => sum + sub.annualJpy, 0);
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-900">
@@ -157,13 +200,13 @@ export default function MFDashboard() {
             <div>
               <div className="inline-flex items-center gap-2 rounded-full bg-white/10 px-3 py-1 text-xs font-bold text-blue-100 ring-1 ring-white/20">
                 <RefreshCw className="h-3.5 w-3.5" />
-                {loadedFromJson ? 'cashflow.json反映中' : 'fallback値で表示中'}
+                JSONのみで更新
               </div>
               <h1 className="mt-4 text-3xl font-black tracking-tight sm:text-5xl">{cashflow.title}</h1>
               <p className="mt-3 max-w-3xl text-sm font-medium leading-7 text-blue-100 sm:text-base">{cashflow.subtitle}</p>
             </div>
             <div className="rounded-2xl bg-white/10 p-4 text-right ring-1 ring-white/20">
-              <div className="text-sm font-bold text-blue-100">8/25給与反映後</div>
+              <div className="text-sm font-bold text-blue-100">{finalPoint.date} {finalPoint.label}反映後</div>
               <div className="mt-1 text-3xl font-black text-white">{formatCurrency(finalPoint.balance)}</div>
               <div className="mt-1 text-xs text-blue-100">純増減 {formatSigned(netChange)}</div>
             </div>
@@ -178,6 +221,59 @@ export default function MFDashboard() {
             <SummaryCard title="最終残高" value={formatCurrency(finalPoint.balance)} sub={`${finalPoint.date} ${finalPoint.label}反映後`} tone="green" Icon={TrendingUp} />
           </section>
 
+          <section className="rounded-[26px] border border-violet-200 bg-white p-4 shadow-xl sm:p-6">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+              <div>
+                <h2 className="flex items-center gap-2 text-2xl font-black text-slate-900">
+                  <CreditCard className="h-6 w-6 text-violet-700" />
+                  {subscriptions.title}
+                </h2>
+                <p className="mt-1 text-sm font-medium text-slate-500">{subscriptions.note}</p>
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <div className="rounded-2xl bg-violet-50 px-4 py-3 text-right ring-1 ring-violet-200">
+                  <div className="text-xs font-bold text-violet-700">月額換算</div>
+                  <div className="text-2xl font-black text-violet-950">{formatCurrency(subscriptionMonthlyTotal)}</div>
+                </div>
+                <div className="rounded-2xl bg-slate-100 px-4 py-3 text-right ring-1 ring-slate-200">
+                  <div className="text-xs font-bold text-slate-600">年間換算</div>
+                  <div className="text-2xl font-black text-slate-950">{formatCurrency(subscriptionAnnualTotal)}</div>
+                </div>
+              </div>
+            </div>
+
+            <div className="mt-5 overflow-x-auto">
+              <table className="w-full min-w-[760px] border-separate border-spacing-0 overflow-hidden rounded-2xl text-sm">
+                <thead>
+                  <tr className="bg-violet-800 text-white">
+                    <th className="px-4 py-3 text-left">サービス</th>
+                    <th className="px-4 py-3 text-left">プラン</th>
+                    <th className="px-4 py-3 text-right">契約額</th>
+                    <th className="px-4 py-3 text-center">負担</th>
+                    <th className="px-4 py-3 text-right">月額換算</th>
+                    <th className="px-4 py-3 text-right">年間換算</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {subscriptionRows.map((sub) => (
+                    <tr key={sub.name} className="odd:bg-white even:bg-violet-50/40">
+                      <td className="border-b border-slate-200 px-4 py-3 font-black text-slate-900">{sub.name}</td>
+                      <td className="border-b border-slate-200 px-4 py-3 text-slate-600">{sub.plan}</td>
+                      <td className="border-b border-slate-200 px-4 py-3 text-right font-bold text-slate-700">
+                        {originalSubscriptionPrice(sub)}
+                        {sub.taxRate ? <div className="text-xs font-medium text-slate-400">税 {Math.round(sub.taxRate * 100)}%</div> : null}
+                      </td>
+                      <td className="border-b border-slate-200 px-4 py-3 text-center font-bold text-slate-700">{sub.split > 1 ? `1/${sub.split}` : '本人'}</td>
+                      <td className="border-b border-slate-200 px-4 py-3 text-right font-black text-violet-800">{formatCurrency(sub.monthlyJpy)}</td>
+                      <td className="border-b border-slate-200 px-4 py-3 text-right font-black text-slate-900">{formatCurrency(sub.annualJpy)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <div className="mt-3 text-xs font-medium text-slate-500">サブスク費はここでは別集計。cashflow.json の固定費に含める場合は二重計上しないこと</div>
+          </section>
+
           <section className="rounded-[26px] border border-slate-200 bg-white p-4 shadow-xl sm:p-6">
             <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
               <div>
@@ -187,8 +283,8 @@ export default function MFDashboard() {
                 </h2>
                 <p className="mt-1 text-sm font-medium text-slate-500">最低は {minPoint.date} の {formatCurrency(minPoint.balance)}</p>
               </div>
-              <div className="rounded-full bg-amber-50 px-4 py-2 text-sm font-black text-amber-800 ring-1 ring-amber-200">
-                安全ライン 80万円は維持
+              <div className={`rounded-full px-4 py-2 text-sm font-black ring-1 ${minPoint.balance >= 800000 ? 'bg-emerald-50 text-emerald-800 ring-emerald-200' : 'bg-amber-50 text-amber-800 ring-amber-200'}`}>
+                {minPoint.balance >= 800000 ? '安全ライン80万円を維持' : '安全ライン80万円を下回る'}
               </div>
             </div>
 
