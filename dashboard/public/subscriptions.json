@@ -1,7 +1,7 @@
 {
-  "updatedAt": "2026-08-22T13:00:00+09:00",
+  "updatedAt": "2026-08-22T13:06:00+09:00",
   "title": "サブスク契約コスト",
-  "note": "Netflixはスタンダードを仮置き。ChatGPT PlusはWeb契約の20USDに日本の消費税10%を加え、2026-08-22時点のUSD/JPY 158.965で円換算。実請求額が分かればmonthlyJpyOverrideを設定する。",
+  "note": "各カードは契約中・見直し候補・解約済みに分類。Netflixは妻と50/50。ChatGPT PlusはWeb契約20USDに日本の消費税10%を加え、USD/JPY 158.965で円換算。実請求額が分かればmonthlyJpyOverrideを設定する。",
   "subscriptions": [
     {
       "name": "Netflix",
@@ -11,7 +11,8 @@
       "currency": "JPY",
       "split": 2,
       "splitNote": "妻と50/50",
-      "monthlyJpyOverride": null
+      "monthlyJpyOverride": null,
+      "status": "active"
     },
     {
       "name": "Spotify",
@@ -20,7 +21,8 @@
       "price": 1080,
       "currency": "JPY",
       "split": 1,
-      "monthlyJpyOverride": null
+      "monthlyJpyOverride": null,
+      "status": "active"
     },
     {
       "name": "YouTube Premium",
@@ -29,7 +31,8 @@
       "price": 1280,
       "currency": "JPY",
       "split": 1,
-      "monthlyJpyOverride": null
+      "monthlyJpyOverride": null,
+      "status": "active"
     },
     {
       "name": "Amazon Prime",
@@ -38,7 +41,8 @@
       "price": 5900,
       "currency": "JPY",
       "split": 1,
-      "monthlyJpyOverride": null
+      "monthlyJpyOverride": null,
+      "status": "active"
     },
     {
       "name": "ChatGPT Plus",
@@ -49,7 +53,8 @@
       "split": 1,
       "taxRate": 0.1,
       "fxRate": 158.965,
-      "monthlyJpyOverride": null
+      "monthlyJpyOverride": null,
+      "status": "active"
     }
   ]
 }
