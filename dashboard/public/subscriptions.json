@@ -1,0 +1,55 @@
+{
+  "updatedAt": "2026-08-22T13:00:00+09:00",
+  "title": "サブスク契約コスト",
+  "note": "Netflixはスタンダードを仮置き。ChatGPT PlusはWeb契約の20USDに日本の消費税10%を加え、2026-08-22時点のUSD/JPY 158.965で円換算。実請求額が分かればmonthlyJpyOverrideを設定する。",
+  "subscriptions": [
+    {
+      "name": "Netflix",
+      "plan": "Standard",
+      "billing": "monthly",
+      "price": 1590,
+      "currency": "JPY",
+      "split": 2,
+      "splitNote": "妻と50/50",
+      "monthlyJpyOverride": null
+    },
+    {
+      "name": "Spotify",
+      "plan": "Premium Standard",
+      "billing": "monthly",
+      "price": 1080,
+      "currency": "JPY",
+      "split": 1,
+      "monthlyJpyOverride": null
+    },
+    {
+      "name": "YouTube Premium",
+      "plan": "Individual",
+      "billing": "monthly",
+      "price": 1280,
+      "currency": "JPY",
+      "split": 1,
+      "monthlyJpyOverride": null
+    },
+    {
+      "name": "Amazon Prime",
+      "plan": "Annual",
+      "billing": "annual",
+      "price": 5900,
+      "currency": "JPY",
+      "split": 1,
+      "monthlyJpyOverride": null
+    },
+    {
+      "name": "ChatGPT Plus",
+      "plan": "Plus",
+      "billing": "monthly",
+      "price": 20,
+      "currency": "USD",
+      "split": 1,
+      "taxRate": 0.1,
+      "fxRate": 158.965,
+      "monthlyJpyOverride": null
+    }
+  ]
+}
