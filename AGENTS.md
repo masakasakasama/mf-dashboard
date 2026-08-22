@@ -1,5 +1,16 @@
 # Codex instructions for mf-dashboard
 
+## Repository scope guard
+
+This task belongs ONLY to the repository `masakasakasama/mf-dashboard`.
+
+- Do not inspect, modify, commit, push, build, release, or deploy any other repository for this task
+- In particular, do NOT touch `Money_management`, `money-pilot-debug.apk`, Android APK release workflows, Android branches, or Android Studio projects
+- The target product is the Web dashboard in `masakasakasama/mf-dashboard`
+- The deployment target is GitHub Pages for `mf-dashboard`
+- Before making any change, verify the current git remote/repository is `masakasakasama/mf-dashboard`
+- If the current workspace is another repository, STOP and switch/open `masakasakasama/mf-dashboard`; do not adapt the task to the other repository
+
 ## Normal update workflow
 
 For routine finance updates, do not edit React code.
