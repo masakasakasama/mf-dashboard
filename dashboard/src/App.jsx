@@ -20,7 +20,6 @@ import {
   GripVertical,
   Home,
   Menu,
-  PieChart,
   Plus,
   RefreshCw,
   RotateCcw,
@@ -29,6 +28,8 @@ import {
   Wallet,
   X,
 } from 'lucide-react';
+
+const APP_VERSION = '1.1.0';
 
 const yen = (value) => `${new Intl.NumberFormat('ja-JP', { maximumFractionDigits: 0 }).format(value)}円`;
 const signedYen = (value) => `${value >= 0 ? '+' : '-'}${yen(Math.abs(value))}`;
@@ -189,13 +190,10 @@ export default function App() {
   }
 
   const minPoint = timeline.reduce((min, item) => (item.balance < min.balance ? item : min), timeline[0]);
+  const finalPoint = timeline[timeline.length - 1];
   const fixedCost = Math.abs([...cashflow.events].reverse().find((e) => e.type === 'fixed')?.amount || 0);
   const latestSalary = [...cashflow.events].reverse().find((e) => e.type === 'income' && e.label.includes('給与'));
-  const focusEvents = [
-    cashflow.events.find((e) => e.label === '6月給与'),
-    cashflow.events.find((e) => e.label === '三井住友カード 6月分'),
-    cashflow.events.find((e) => e.label === 'JALカードSuicaゴールド'),
-  ].filter(Boolean);
+  const focusEvents = cashflow.events.slice(-3);
   const activeSubs = subscriptionRows.filter((sub) => sub.status !== 'cancelled');
   const monthlySubscriptions = activeSubs.reduce((sum, sub) => sum + sub.monthlyJpy, 0);
   const annualSubscriptions = monthlySubscriptions * 12;
@@ -229,7 +227,10 @@ export default function App() {
     <div className="app-shell">
       <div className="phone-layout">
         <header className="topbar">
-          <div className="brand-lockup"><div className="app-icon"><Wallet size={24} /></div><span>金管理</span></div>
+          <div className="brand-lockup">
+            <div className="app-icon"><Wallet size={24} /></div>
+            <div className="brand-text"><span>金管理</span><small>v{APP_VERSION}</small></div>
+          </div>
           <div className="top-actions"><button className="icon-button" aria-label="通知"><Bell size={22} /></button><button className="icon-button" aria-label="メニュー"><Menu size={24} /></button></div>
         </header>
 
@@ -237,18 +238,18 @@ export default function App() {
           <main className="content-stack home-screen">
             <section className="balance-hero">
               <div className="hero-copy">
-                <div className="eyebrow">基準残高 <Eye size={17} /></div>
-                <div className="hero-amount">{yen(cashflow.start.balance)}</div>
-                <div className="hero-meta">{cashflow.start.date} 時点 ・ {cashflow.start.note}</div>
+                <div className="eyebrow">{finalPoint.date} 支払後見込残高 <Eye size={17} /></div>
+                <div className="hero-amount">{yen(finalPoint.balance)}</div>
+                <div className="hero-meta">基準 {cashflow.start.date} {yen(cashflow.start.balance)} ・ 婚約指輪は8/26カード請求に含む</div>
               </div>
               <div className="shield-art"><ShieldCheck size={66} strokeWidth={1.7} /></div>
             </section>
 
             <section>
-              <div className="section-heading"><h2>主要イベント</h2><button className="text-link" onClick={() => setShowAll((v) => !v)}>{showAll ? '閉じる' : 'すべて見る'} <ChevronRight size={17} /></button></div>
+              <div className="section-heading"><h2>最新イベント</h2><button className="text-link" onClick={() => setShowAll((v) => !v)}>{showAll ? '閉じる' : 'すべて見る'} <ChevronRight size={17} /></button></div>
               <div className="event-grid">
                 {focusEvents.map((event) => (
-                  <div className={`event-card ${event.amount > 0 ? 'positive' : ''}`} key={event.label}>
+                  <div className={`event-card ${event.amount > 0 ? 'positive' : ''}`} key={`${event.date}-${event.label}`}>
                     <div className="event-top"><span className="event-icon"><EventIcon type={event.type} /></span><span className="event-date">{event.date}</span></div>
                     <div className="event-label">{event.label}</div>
                     <div className={event.amount > 0 ? 'money-plus event-amount' : 'money-minus event-amount'}>{signedYen(event.amount)}</div>
@@ -283,7 +284,7 @@ export default function App() {
                 <div className="summary-title"><Home size={19} /> 固定費 <ChevronRight size={18} /></div><div className="summary-kicker">月額想定</div><div className="summary-value">{yen(fixedCost)}</div><div className="summary-sub">cashflow.json反映</div>
               </button>
               <button className="summary-card salary-card" onClick={() => setShowAll(true)}>
-                <div className="summary-title"><Briefcase size={19} /> 次回給与 <ChevronRight size={18} /></div><div className="summary-kicker">{latestSalary?.date || '給与'}</div><div className="summary-value">{latestSalary ? yen(latestSalary.amount) : '未設定'}</div><div className="summary-sub">差引支給額</div>
+                <div className="summary-title"><Briefcase size={19} /> 最新給与 <ChevronRight size={18} /></div><div className="summary-kicker">{latestSalary?.date || '給与'}</div><div className="summary-value">{latestSalary ? yen(latestSalary.amount) : '未設定'}</div><div className="summary-sub">差引支給額</div>
               </button>
               <button className="summary-card subscription-summary" onClick={() => setScreen('subscriptions')}>
                 <div className="summary-title"><RefreshCw size={19} /> サブスク <ChevronRight size={18} /></div><div className="summary-kicker">月額合計</div><div className="summary-value">{yen(monthlySubscriptions)}</div><div className="summary-sub">{activeSubs.length}件を計上</div><div className="brand-strip">{activeSubs.slice(0, 5).map((sub) => <SubscriptionBadge key={sub.name} name={sub.name} />)}</div>
@@ -330,12 +331,13 @@ export default function App() {
           </main>
         )}
 
-        <nav className="bottom-nav">
-          <button className={screen === 'home' ? 'active' : ''} onClick={() => setScreen('home')}><Home size={21} /><span>ホーム</span></button>
-          <button onClick={() => { setScreen('home'); setShowAll(true); }}><ArrowUpDown size={21} /><span>入出金</span></button>
+        <div className="app-version">金管理 Web v{APP_VERSION} ・ updated {cashflow.updatedAt?.slice(0, 10) || ''}</div>
+
+        <nav className="bottom-nav compact-nav">
+          <button className={screen === 'home' && !showAll ? 'active' : ''} onClick={() => { setScreen('home'); setShowAll(false); }}><Home size={21} /><span>ホーム</span></button>
+          <button className={screen === 'home' && showAll ? 'active' : ''} onClick={() => { setScreen('home'); setShowAll(true); }}><ArrowUpDown size={21} /><span>入出金</span></button>
           <button className="nav-plus" onClick={() => setUpdateHelp(true)}><Plus size={26} /></button>
           <button className={screen === 'subscriptions' ? 'active' : ''} onClick={() => setScreen('subscriptions')}><RefreshCw size={21} /><span>サブスク</span></button>
-          <button onClick={() => setScreen('home')}><PieChart size={21} /><span>資産</span></button>
         </nav>
       </div>
 
