@@ -1,4 +1,4 @@
-const CACHE_NAME = 'money-dashboard-shell-v1';
+const CACHE_NAME = 'money-dashboard-shell-v1.3.0';
 const DATA_FILES = ['cashflow.json', 'subscriptions.json'];
 
 self.addEventListener('install', (event) => {
