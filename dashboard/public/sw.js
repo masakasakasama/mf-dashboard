@@ -1,11 +1,9 @@
-const CACHE_NAME = 'money-dashboard-shell-v1.3.0';
+const CACHE_NAME = 'money-dashboard-shell-v1.4.0';
 const DATA_FILES = ['cashflow.json', 'subscriptions.json'];
 
 self.addEventListener('install', (event) => {
   self.skipWaiting();
-  event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => cache.addAll(['./']))
-  );
+  event.waitUntil(caches.open(CACHE_NAME).then((cache) => cache.addAll(['./'])));
 });
 
 self.addEventListener('activate', (event) => {
@@ -30,7 +28,7 @@ self.addEventListener('fetch', (event) => {
 
   if (request.mode === 'navigate') {
     event.respondWith(
-      fetch(request)
+      fetch(request, { cache: 'no-store' })
         .then((response) => {
           const copy = response.clone();
           caches.open(CACHE_NAME).then((cache) => cache.put('./', copy));
