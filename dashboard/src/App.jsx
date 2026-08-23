@@ -3,7 +3,6 @@ import {
   Area,
   AreaChart,
   CartesianGrid,
-  Line,
   ReferenceLine,
   ResponsiveContainer,
   Tooltip,
@@ -11,635 +10,342 @@ import {
   YAxis,
 } from 'recharts';
 import {
-  AlertTriangle,
-  Banknote,
-  Bot,
-  CalendarDays,
-  CheckCircle2,
+  ArrowUpDown,
+  Bell,
+  Briefcase,
+  Check,
+  ChevronRight,
   CreditCard,
-  Gift,
+  Eye,
   GripVertical,
   Home,
-  Music,
-  PiggyBank,
-  PlayCircle,
+  Menu,
+  PieChart,
+  Plus,
   RefreshCw,
   RotateCcw,
-  ShoppingBag,
+  ShieldCheck,
   TrendingUp,
-  Users,
   Wallet,
-  XCircle,
+  X,
 } from 'lucide-react';
 
-const formatCurrency = (value) => new Intl.NumberFormat('ja-JP', { maximumFractionDigits: 0 }).format(value) + '円';
-const formatSigned = (value) => `${value >= 0 ? '+' : ''}${formatCurrency(value)}`;
-const formatShort = (value) => `${(value / 10000).toFixed(1)}万`;
+const yen = (value) => `${new Intl.NumberFormat('ja-JP', { maximumFractionDigits: 0 }).format(value)}円`;
+const signedYen = (value) => `${value >= 0 ? '+' : '-'}${yen(Math.abs(value))}`;
+const shortYen = (value) => `${Math.round(value / 10000)}万`;
 
-const typeMeta = {
-  income: { label: '収入', color: 'text-emerald-700', bg: 'bg-emerald-50', Icon: Banknote },
-  card: { label: 'カード', color: 'text-rose-700', bg: 'bg-rose-50', Icon: CreditCard },
-  fixed: { label: '固定費', color: 'text-orange-700', bg: 'bg-orange-50', Icon: Home },
-  special: { label: '特別支出', color: 'text-purple-700', bg: 'bg-purple-50', Icon: Gift },
-  base: { label: '起点', color: 'text-blue-700', bg: 'bg-blue-50', Icon: Wallet },
+const statusMeta = {
+  active: { label: '契約中', tone: 'active' },
+  review: { label: '見直し候補', tone: 'review' },
+  cancelled: { label: '解約済み', tone: 'cancelled' },
 };
 
-const SUBSCRIPTION_STATUSES = [
-  {
-    id: 'active',
-    label: '契約中',
-    description: '現在支払っている',
-    Icon: CheckCircle2,
-    column: 'border-emerald-200 bg-emerald-50/70',
-    badge: 'bg-emerald-100 text-emerald-800',
-    icon: 'text-emerald-700',
-  },
-  {
-    id: 'review',
-    label: '見直し候補',
-    description: 'まだ課金中、要判断',
-    Icon: AlertTriangle,
-    column: 'border-amber-200 bg-amber-50/70',
-    badge: 'bg-amber-100 text-amber-800',
-    icon: 'text-amber-700',
-  },
-  {
-    id: 'cancelled',
-    label: '解約済み',
-    description: '支出集計から除外',
-    Icon: XCircle,
-    column: 'border-slate-300 bg-slate-100/80',
-    badge: 'bg-slate-200 text-slate-700',
-    icon: 'text-slate-500',
-  },
-];
-
-const SUBSCRIPTION_BRANDS = {
-  Netflix: { mark: 'N', className: 'bg-red-600 text-white', Icon: null },
-  Spotify: { mark: null, className: 'bg-emerald-500 text-white', Icon: Music },
-  'YouTube Premium': { mark: null, className: 'bg-red-500 text-white', Icon: PlayCircle },
-  'Amazon Prime': { mark: null, className: 'bg-sky-500 text-white', Icon: ShoppingBag },
-  'ChatGPT Plus': { mark: null, className: 'bg-slate-900 text-white', Icon: Bot },
+const brandMeta = {
+  Netflix: { mark: 'N', className: 'brand-netflix' },
+  Spotify: { mark: '●', className: 'brand-spotify' },
+  'YouTube Premium': { mark: '▶', className: 'brand-youtube' },
+  'Amazon Prime': { mark: 'a', className: 'brand-amazon' },
+  'ChatGPT Plus': { mark: '◎', className: 'brand-chatgpt' },
 };
 
-function buildTimeline(data) {
-  const first = {
-    date: data.start.date,
-    label: data.start.label,
+function buildTimeline(cashflow) {
+  const seed = [{
+    date: cashflow.start.date,
+    label: cashflow.start.label,
     amount: 0,
-    balance: data.start.balance,
+    balance: cashflow.start.balance,
     type: 'base',
-    note: data.start.note,
-  };
+    note: cashflow.start.note,
+  }];
 
-  return data.events.reduce((items, event) => {
-    const previous = items[items.length - 1].balance;
-    items.push({ ...event, balance: previous + event.amount });
-    return items;
-  }, [first]);
-}
-
-function getMonthLabel(date) {
-  const slash = String(date).match(/^(\d{1,2})\//);
-  if (slash) return `${Number(slash[1])}月`;
-  const jp = String(date).match(/^(\d{1,2})月/);
-  if (jp) return `${Number(jp[1])}月`;
-  return 'その他';
-}
-
-function buildMonthRows(events) {
-  const map = new Map();
-
-  events.forEach((event) => {
-    const month = getMonthLabel(event.date);
-    if (!map.has(month)) map.set(month, { month, income: 0, expense: 0 });
-    const row = map.get(month);
-    if (event.amount >= 0) row.income += event.amount;
-    else row.expense += Math.abs(event.amount);
-  });
-
-  return [...map.values()]
-    .map((row) => ({ ...row, net: row.income - row.expense }))
-    .sort((a, b) => parseInt(a.month, 10) - parseInt(b.month, 10));
+  return cashflow.events.reduce((acc, event) => {
+    const previous = acc[acc.length - 1].balance;
+    acc.push({ ...event, balance: previous + event.amount });
+    return acc;
+  }, seed);
 }
 
 function subscriptionMonthlyJpy(sub) {
   if (Number.isFinite(sub.monthlyJpyOverride)) return sub.monthlyJpyOverride;
-
   const split = sub.split || 1;
-  const taxMultiplier = 1 + (sub.taxRate || 0);
-  let amountJpy = sub.price;
-
-  if (sub.currency === 'USD') amountJpy = sub.price * taxMultiplier * (sub.fxRate || 1);
-  if (sub.billing === 'annual') amountJpy /= 12;
-
-  return amountJpy / split;
+  const tax = 1 + (sub.taxRate || 0);
+  let amount = sub.price;
+  if (sub.currency === 'USD') amount = sub.price * tax * (sub.fxRate || 1);
+  if (sub.billing === 'annual') amount /= 12;
+  return amount / split;
 }
 
-function originalSubscriptionPrice(sub) {
-  const amount = sub.currency === 'USD' ? `$${sub.price}` : formatCurrency(sub.price);
-  const cycle = sub.billing === 'annual' ? '年' : '月';
-  return `${amount}/${cycle}`;
+function originalPrice(sub) {
+  const amount = sub.currency === 'USD' ? `$${sub.price}` : yen(sub.price);
+  return `${amount}/${sub.billing === 'annual' ? '年' : '月'}`;
 }
 
-function subscriptionTaxFxNote(sub) {
-  if (Number.isFinite(sub.monthlyJpyOverride)) return `実請求 ${formatCurrency(sub.monthlyJpyOverride)} を優先`;
-  if (sub.currency !== 'USD') return null;
-
-  const tax = Number.isFinite(sub.taxRate) ? `税 ${(sub.taxRate * 100).toFixed(0)}%` : null;
-  const fx = Number.isFinite(sub.fxRate) ? `1 USD = ${sub.fxRate.toFixed(3)}円` : null;
-  return [tax, fx].filter(Boolean).join(' / ');
-}
-
-function SummaryCard({ title, value, sub, tone = 'blue', Icon }) {
-  const tones = {
-    blue: 'from-blue-50 to-sky-50 border-blue-200 text-blue-900',
-    amber: 'from-amber-50 to-orange-50 border-amber-200 text-amber-900',
-    green: 'from-emerald-50 to-green-50 border-emerald-200 text-emerald-900',
-    purple: 'from-violet-50 to-purple-50 border-violet-200 text-violet-900',
-  };
-
-  return (
-    <div className={`rounded-2xl border bg-gradient-to-br ${tones[tone]} p-4 shadow-sm`}>
-      <div className="flex items-center justify-between gap-3">
-        <div className="text-sm font-semibold opacity-80">{title}</div>
-        <Icon className="h-6 w-6 opacity-80" />
-      </div>
-      <div className="mt-3 text-2xl font-black tracking-tight sm:text-3xl">{value}</div>
-      <div className="mt-1 text-xs font-medium opacity-75">{sub}</div>
-    </div>
-  );
-}
-
-function CustomTooltip({ active, payload }) {
+function BalanceTooltip({ active, payload }) {
   if (!active || !payload?.length) return null;
   const item = payload[0].payload;
-
   return (
-    <div className="rounded-xl border border-slate-200 bg-white p-3 shadow-xl">
-      <div className="text-sm font-bold text-slate-900">{item.date} {item.label}</div>
-      <div className={item.amount >= 0 ? 'text-emerald-700' : 'text-rose-700'}>{formatSigned(item.amount)}</div>
-      <div className="text-sm text-slate-600">残高 {formatCurrency(item.balance)}</div>
-      {item.note && <div className="mt-1 text-xs text-slate-400">{item.note}</div>}
+    <div className="chart-tooltip">
+      <div className="chart-tooltip-title">{item.date} {item.label}</div>
+      {item.amount !== 0 && <div className={item.amount > 0 ? 'money-plus' : 'money-minus'}>{signedYen(item.amount)}</div>}
+      <div className="chart-tooltip-balance">残高 {yen(item.balance)}</div>
     </div>
   );
 }
 
-function SubscriptionLogo({ name }) {
-  const brand = SUBSCRIPTION_BRANDS[name] || { mark: name?.slice(0, 1) || '?', className: 'bg-violet-600 text-white', Icon: null };
-  const Icon = brand.Icon;
-
-  return (
-    <div className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl shadow-sm ${brand.className}`}>
-      {Icon ? <Icon className="h-6 w-6" /> : <span className="text-xl font-black">{brand.mark}</span>}
-    </div>
-  );
+function EventIcon({ type }) {
+  if (type === 'income') return <Briefcase size={20} />;
+  if (type === 'card') return <CreditCard size={20} />;
+  return <Wallet size={20} />;
 }
 
-function SubscriptionCard({ sub, status, onDragStart, onStatusChange }) {
-  const taxFxNote = subscriptionTaxFxNote(sub);
+function SubscriptionBadge({ name }) {
+  const brand = brandMeta[name] || { mark: name.slice(0, 1), className: 'brand-default' };
+  return <span className={`brand-badge ${brand.className}`}>{brand.mark}</span>;
+}
 
+function SubscriptionCard({ sub, onDragStart, onStatusChange }) {
   return (
-    <article
-      draggable
-      onDragStart={(event) => onDragStart(event, sub.name)}
-      className="group cursor-grab rounded-2xl border border-white/80 bg-white p-3 shadow-md shadow-slate-200/60 transition hover:-translate-y-0.5 hover:shadow-lg active:cursor-grabbing"
-    >
-      <div className="flex items-start gap-3">
-        <SubscriptionLogo name={sub.name} />
-        <div className="min-w-0 flex-1">
-          <div className="flex items-start justify-between gap-2">
-            <div>
-              <div className="truncate text-base font-black text-slate-900">{sub.name}</div>
-              <div className="mt-0.5 text-xs font-semibold text-slate-500">{sub.plan}</div>
-            </div>
-            <GripVertical className="h-5 w-5 shrink-0 text-slate-300 group-hover:text-slate-500" />
-          </div>
-
-          <div className="mt-3 grid grid-cols-2 gap-2">
-            <div className="rounded-xl bg-violet-50 px-3 py-2">
-              <div className="text-[11px] font-bold text-violet-600">自分の月額</div>
-              <div className="mt-0.5 text-lg font-black text-violet-950">{formatCurrency(sub.monthlyJpy)}</div>
-            </div>
-            <div className="rounded-xl bg-slate-50 px-3 py-2">
-              <div className="text-[11px] font-bold text-slate-500">年間換算</div>
-              <div className="mt-0.5 text-lg font-black text-slate-900">{formatCurrency(sub.annualJpy)}</div>
-            </div>
-          </div>
-
-          <dl className="mt-2 grid grid-cols-2 gap-x-3 gap-y-1.5 rounded-xl bg-slate-50 p-2.5 text-[11px] leading-4">
-            <div><dt className="font-bold text-slate-400">契約額</dt><dd className="font-black text-slate-700">{originalSubscriptionPrice(sub)}</dd></div>
-            <div><dt className="font-bold text-slate-400">請求周期</dt><dd className="font-black text-slate-700">{sub.billing === 'annual' ? '年額（月額換算）' : '毎月'}</dd></div>
-            <div><dt className="font-bold text-slate-400">割り勘</dt><dd className="font-black text-slate-700">{sub.split > 1 ? sub.splitNote || `1/${sub.split}負担` : 'なし'}</dd></div>
-            <div><dt className="font-bold text-slate-400">通貨</dt><dd className="font-black text-slate-700">{sub.currency}</dd></div>
-            {taxFxNote ? <div className="col-span-2"><dt className="font-bold text-slate-400">税・為替</dt><dd className="font-black text-slate-700">{taxFxNote}</dd></div> : null}
-          </dl>
-          <div className="mt-2 flex flex-wrap gap-1.5 text-[11px] font-bold text-slate-600">
-            {sub.split > 1 ? (
-              <span className="inline-flex items-center gap-1 rounded-full bg-blue-50 px-2 py-1 text-blue-700">
-                <Users className="h-3 w-3" />{sub.splitNote || `1/${sub.split}負担`}
-              </span>
-            ) : null}
-            {sub.billing === 'annual' ? <span className="rounded-full bg-amber-50 px-2 py-1 text-amber-700">年払いを月額換算</span> : null}
-            {sub.currency === 'USD' ? <span className="rounded-full bg-emerald-50 px-2 py-1 text-emerald-700">USD契約</span> : null}
-          </div>
+    <article className="subscription-card" draggable onDragStart={(event) => onDragStart(event, sub.name)}>
+      <div className="drag-grip" title="ドラッグして状態変更"><GripVertical size={20} /></div>
+      <SubscriptionBadge name={sub.name} />
+      <div className="subscription-main">
+        <div className="subscription-name">{sub.name}</div>
+        <div className="subscription-plan">
+          {sub.plan}{sub.split > 1 ? ` ・ ${sub.splitNote || `1/${sub.split}負担`}` : ''}
         </div>
       </div>
-
-      <div className="mt-3 grid grid-cols-3 gap-1 rounded-xl bg-slate-100 p-1 md:hidden">
-        {SUBSCRIPTION_STATUSES.map((item) => (
-          <button
-            key={item.id}
-            type="button"
-            onClick={() => onStatusChange(sub.name, item.id)}
-            className={`rounded-lg px-2 py-1.5 text-[11px] font-black transition ${status === item.id ? item.badge : 'text-slate-500'}`}
-          >
-            {item.label}
-          </button>
-        ))}
+      <div className="subscription-price">
+        <div>{originalPrice(sub)}</div>
+        <strong>{yen(sub.monthlyJpy)}/月</strong>
       </div>
+      <select
+        className="status-select"
+        value={sub.status}
+        onChange={(e) => onStatusChange(sub.name, e.target.value)}
+        aria-label={`${sub.name} の契約状態`}
+      >
+        <option value="active">契約中</option>
+        <option value="review">見直し候補</option>
+        <option value="cancelled">解約済み</option>
+      </select>
     </article>
   );
 }
 
-export default function MFDashboard() {
+export default function App() {
   const [cashflow, setCashflow] = useState(null);
   const [subscriptions, setSubscriptions] = useState(null);
+  const [statusMap, setStatusMap] = useState({});
+  const [screen, setScreen] = useState('home');
+  const [showAll, setShowAll] = useState(false);
+  const [updateHelp, setUpdateHelp] = useState(false);
   const [error, setError] = useState('');
-  const [subscriptionBoard, setSubscriptionBoard] = useState({});
-  const [draggedSubscription, setDraggedSubscription] = useState('');
-  const [dragOverStatus, setDragOverStatus] = useState('');
 
   useEffect(() => {
     Promise.all([
       fetch(`${import.meta.env.BASE_URL}cashflow.json`, { cache: 'no-store' }).then((res) => {
-        if (!res.ok) throw new Error('cashflow.json not found');
+        if (!res.ok) throw new Error('cashflow.json の読み込みに失敗');
         return res.json();
       }),
       fetch(`${import.meta.env.BASE_URL}subscriptions.json`, { cache: 'no-store' }).then((res) => {
-        if (!res.ok) throw new Error('subscriptions.json not found');
+        if (!res.ok) throw new Error('subscriptions.json の読み込みに失敗');
         return res.json();
       }),
     ])
-      .then(([cashflowJson, subscriptionsJson]) => {
-        setCashflow(cashflowJson);
-        setSubscriptions(subscriptionsJson);
+      .then(([cashflowData, subscriptionData]) => {
+        setCashflow(cashflowData);
+        setSubscriptions(subscriptionData);
+        const canonical = Object.fromEntries(subscriptionData.subscriptions.map((sub) => [sub.name, sub.status || 'active']));
+        try {
+          const stored = JSON.parse(localStorage.getItem('mf-dashboard-subscription-status') || '{}');
+          setStatusMap({ ...canonical, ...stored });
+        } catch {
+          setStatusMap(canonical);
+        }
       })
       .catch((err) => setError(err.message));
   }, []);
 
-  useEffect(() => {
-    if (!subscriptions) return;
-
-    const defaults = Object.fromEntries(
-      subscriptions.subscriptions.map((sub) => [sub.name, sub.status || 'active'])
-    );
-
-    try {
-      const saved = JSON.parse(localStorage.getItem('mf-dashboard-subscription-board-v1') || '{}');
-      setSubscriptionBoard({ ...defaults, ...saved });
-    } catch {
-      setSubscriptionBoard(defaults);
-    }
-  }, [subscriptions]);
-
-  useEffect(() => {
-    if (!subscriptions || Object.keys(subscriptionBoard).length === 0) return;
-    localStorage.setItem('mf-dashboard-subscription-board-v1', JSON.stringify(subscriptionBoard));
-  }, [subscriptionBoard, subscriptions]);
-
   const timeline = useMemo(() => (cashflow ? buildTimeline(cashflow) : []), [cashflow]);
-  const monthRows = useMemo(() => (cashflow ? buildMonthRows(cashflow.events) : []), [cashflow]);
   const subscriptionRows = useMemo(() => {
     if (!subscriptions) return [];
-    return subscriptions.subscriptions.map((sub) => {
-      const monthlyJpy = subscriptionMonthlyJpy(sub);
-      return {
-        ...sub,
-        monthlyJpy,
-        annualJpy: monthlyJpy * 12,
-        boardStatus: subscriptionBoard[sub.name] || sub.status || 'active',
-      };
-    });
-  }, [subscriptions, subscriptionBoard]);
+    return subscriptions.subscriptions.map((sub) => ({
+      ...sub,
+      status: statusMap[sub.name] || sub.status || 'active',
+      monthlyJpy: subscriptionMonthlyJpy(sub),
+    }));
+  }, [subscriptions, statusMap]);
 
   if (error) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-slate-950 p-6 text-white">
-        <div className="max-w-lg rounded-3xl border border-rose-800 bg-rose-950/40 p-6">
-          <div className="text-xl font-black">データ読み込みエラー</div>
-          <div className="mt-2 text-sm text-rose-100">{error}</div>
-          <div className="mt-4 text-xs text-rose-200">cashflow.json と subscriptions.json を確認</div>
-        </div>
+      <div className="app-shell error-shell">
+        <div className="error-card"><X size={28} /><h1>データを読み込めない</h1><p>{error}</p></div>
       </div>
     );
   }
 
-  if (!cashflow || !subscriptions) {
-    return (
-      <div className="flex min-h-screen items-center justify-center bg-slate-950 text-white">
-        <RefreshCw className="h-8 w-8 animate-spin text-blue-300" />
-      </div>
-    );
+  if (!cashflow || !subscriptions || !timeline.length) {
+    return <div className="app-shell loading-shell"><RefreshCw className="spin" size={34} /></div>;
   }
 
-  const startBalance = cashflow.start.balance;
   const minPoint = timeline.reduce((min, item) => (item.balance < min.balance ? item : min), timeline[0]);
-  const finalPoint = timeline[timeline.length - 1];
-  const incomeTotal = cashflow.events.filter((e) => e.amount > 0).reduce((sum, e) => sum + e.amount, 0);
-  const expenseTotal = Math.abs(cashflow.events.filter((e) => e.amount < 0).reduce((sum, e) => sum + e.amount, 0));
-  const netChange = finalPoint.balance - startBalance;
+  const fixedCost = Math.abs([...cashflow.events].reverse().find((e) => e.type === 'fixed')?.amount || 0);
+  const latestSalary = [...cashflow.events].reverse().find((e) => e.type === 'income' && e.label.includes('給与'));
+  const focusEvents = [
+    cashflow.events.find((e) => e.label === '6月給与'),
+    cashflow.events.find((e) => e.label === '三井住友カード 6月分'),
+    cashflow.events.find((e) => e.label === 'JALカードSuicaゴールド'),
+  ].filter(Boolean);
+  const activeSubs = subscriptionRows.filter((sub) => sub.status !== 'cancelled');
+  const monthlySubscriptions = activeSubs.reduce((sum, sub) => sum + sub.monthlyJpy, 0);
+  const annualSubscriptions = monthlySubscriptions * 12;
+  const reviewMonthly = subscriptionRows.filter((sub) => sub.status === 'review').reduce((sum, sub) => sum + sub.monthlyJpy, 0);
+  const cancelledMonthly = subscriptionRows.filter((sub) => sub.status === 'cancelled').reduce((sum, sub) => sum + sub.monthlyJpy, 0);
 
-  const activeSubscriptionRows = subscriptionRows.filter((sub) => sub.boardStatus === 'active');
-  const subscriptionMonthlyTotal = activeSubscriptionRows.reduce((sum, sub) => sum + sub.monthlyJpy, 0);
-  const subscriptionAnnualTotal = activeSubscriptionRows.reduce((sum, sub) => sum + sub.annualJpy, 0);
-  const reviewMonthlyTotal = subscriptionRows
-    .filter((sub) => sub.boardStatus === 'review')
-    .reduce((sum, sub) => sum + sub.monthlyJpy, 0);
-  const cancelledMonthlySavings = subscriptionRows
-    .filter((sub) => sub.boardStatus === 'cancelled')
-    .reduce((sum, sub) => sum + sub.monthlyJpy, 0);
-  const cancelledAnnualSavings = subscriptionRows
-    .filter((sub) => sub.boardStatus === 'cancelled')
-    .reduce((sum, sub) => sum + sub.annualJpy, 0);
-
-  const setSubscriptionStatus = (name, status) => {
-    setSubscriptionBoard((current) => ({ ...current, [name]: status }));
+  const setSubStatus = (name, status) => {
+    const next = { ...statusMap, [name]: status };
+    setStatusMap(next);
+    localStorage.setItem('mf-dashboard-subscription-status', JSON.stringify(next));
   };
 
-  const handleDragStart = (event, name) => {
-    setDraggedSubscription(name);
-    event.dataTransfer.effectAllowed = 'move';
+  const resetStatuses = () => {
+    const canonical = Object.fromEntries(subscriptions.subscriptions.map((sub) => [sub.name, sub.status || 'active']));
+    setStatusMap(canonical);
+    localStorage.removeItem('mf-dashboard-subscription-status');
+  };
+
+  const startDrag = (event, name) => {
     event.dataTransfer.setData('text/plain', name);
+    event.dataTransfer.effectAllowed = 'move';
   };
 
-  const handleDrop = (event, status) => {
+  const dropStatus = (event, status) => {
     event.preventDefault();
-    const name = event.dataTransfer.getData('text/plain') || draggedSubscription;
-    if (name) setSubscriptionStatus(name, status);
-    setDraggedSubscription('');
-    setDragOverStatus('');
-  };
-
-  const resetSubscriptionBoard = () => {
-    const defaults = Object.fromEntries(
-      subscriptions.subscriptions.map((sub) => [sub.name, sub.status || 'active'])
-    );
-    localStorage.removeItem('mf-dashboard-subscription-board-v1');
-    setSubscriptionBoard(defaults);
+    const name = event.dataTransfer.getData('text/plain');
+    if (name) setSubStatus(name, status);
   };
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-900">
-      <div className="mx-auto max-w-6xl px-3 py-4 sm:px-5 sm:py-8">
-        <header className="overflow-hidden rounded-[28px] border border-blue-900/70 bg-gradient-to-br from-blue-950 via-slate-950 to-blue-900 p-5 text-white shadow-2xl sm:p-7">
-          <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-            <div>
-              <div className="inline-flex items-center gap-2 rounded-full bg-white/10 px-3 py-1 text-xs font-bold text-blue-100 ring-1 ring-white/20">
-                <RefreshCw className="h-3.5 w-3.5" />
-                JSONのみで更新
-              </div>
-              <h1 className="mt-4 text-3xl font-black tracking-tight sm:text-5xl">{cashflow.title}</h1>
-              <p className="mt-3 max-w-3xl text-sm font-medium leading-7 text-blue-100 sm:text-base">{cashflow.subtitle}</p>
-            </div>
-            <div className="rounded-2xl bg-white/10 p-4 text-right ring-1 ring-white/20">
-              <div className="text-sm font-bold text-blue-100">{finalPoint.date} {finalPoint.label}反映後</div>
-              <div className="mt-1 text-3xl font-black text-white">{formatCurrency(finalPoint.balance)}</div>
-              <div className="mt-1 text-xs text-blue-100">純増減 {formatSigned(netChange)}</div>
-            </div>
-          </div>
+    <div className="app-shell">
+      <div className="phone-layout">
+        <header className="topbar">
+          <div className="brand-lockup"><div className="app-icon"><Wallet size={24} /></div><span>金管理</span></div>
+          <div className="top-actions"><button className="icon-button" aria-label="通知"><Bell size={22} /></button><button className="icon-button" aria-label="メニュー"><Menu size={24} /></button></div>
         </header>
 
-        <main className="mt-4 space-y-4 sm:mt-6 sm:space-y-6">
-          <section className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
-            <SummaryCard title="起点残高" value={formatCurrency(startBalance)} sub={`${cashflow.start.date} ${cashflow.start.note}`} tone="blue" Icon={Wallet} />
-            <SummaryCard title="最低残高" value={formatCurrency(minPoint.balance)} sub={`${minPoint.date} ${minPoint.label}後`} tone="amber" Icon={AlertTriangle} />
-            <SummaryCard title="最低日" value={minPoint.date} sub="資金繰り上の底" tone="purple" Icon={CalendarDays} />
-            <SummaryCard title="最終残高" value={formatCurrency(finalPoint.balance)} sub={`${finalPoint.date} ${finalPoint.label}反映後`} tone="green" Icon={TrendingUp} />
-          </section>
-
-          <section className="rounded-[26px] border border-slate-700 bg-slate-900 p-4 text-white shadow-2xl shadow-slate-950/60 sm:p-6">
-            <div className="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
-              <div>
-                <div className="flex items-center gap-2">
-                  <CreditCard className="h-6 w-6 text-violet-300" />
-                  <h2 className="text-2xl font-black text-white">{subscriptions.title}</h2>
-                </div>
-                <p className="mt-1 max-w-3xl text-sm font-medium leading-6 text-slate-300">{subscriptions.note}</p>
-                <div className="mt-2 inline-flex items-center gap-2 rounded-full bg-violet-400/15 px-3 py-1.5 text-xs font-black text-violet-100 ring-1 ring-violet-300/30">
-                  <GripVertical className="h-3.5 w-3.5" />
-                  カードをドラッグして契約状態を変更、端末内に自動保存
-                </div>
+        {screen === 'home' ? (
+          <main className="content-stack home-screen">
+            <section className="balance-hero">
+              <div className="hero-copy">
+                <div className="eyebrow">基準残高 <Eye size={17} /></div>
+                <div className="hero-amount">{yen(cashflow.start.balance)}</div>
+                <div className="hero-meta">{cashflow.start.date} 時点 ・ {cashflow.start.note}</div>
               </div>
+              <div className="shield-art"><ShieldCheck size={66} strokeWidth={1.7} /></div>
+            </section>
 
-              <div className="grid grid-cols-2 gap-2 md:grid-cols-5">
-                <div className="rounded-2xl bg-violet-400/15 px-3 py-3 text-right ring-1 ring-violet-300/30">
-                  <div className="text-[11px] font-bold text-violet-100">契約中 月額</div>
-                  <div className="text-xl font-black text-white">{formatCurrency(subscriptionMonthlyTotal)}</div>
-                </div>
-                <div className="rounded-2xl bg-slate-800 px-3 py-3 text-right ring-1 ring-slate-700">
-                  <div className="text-[11px] font-bold text-slate-300">契約中 年間</div>
-                  <div className="text-xl font-black text-white">{formatCurrency(subscriptionAnnualTotal)}</div>
-                </div>
-                <div className="rounded-2xl bg-amber-400/15 px-3 py-3 text-right ring-1 ring-amber-300/30">
-                  <div className="text-[11px] font-bold text-amber-100">見直し候補 月額</div>
-                  <div className="text-xl font-black text-amber-50">{formatCurrency(reviewMonthlyTotal)}</div>
-                </div>
-                <div className="rounded-2xl bg-emerald-400/15 px-3 py-3 text-right ring-1 ring-emerald-300/30">
-                  <div className="text-[11px] font-bold text-emerald-100">解約で削減 月額</div>
-                  <div className="text-xl font-black text-emerald-50">{formatCurrency(cancelledMonthlySavings)}</div>
-                </div>
-                <div className="rounded-2xl bg-emerald-400/15 px-3 py-3 text-right ring-1 ring-emerald-300/30">
-                  <div className="text-[11px] font-bold text-emerald-100">解約で削減 年間</div>
-                  <div className="text-xl font-black text-emerald-50">{formatCurrency(cancelledAnnualSavings)}</div>
-                </div>
-              </div>
-            </div>
-
-            <div className="mt-5 grid gap-3 lg:grid-cols-3">
-              {SUBSCRIPTION_STATUSES.map((status) => {
-                const cards = subscriptionRows.filter((sub) => sub.boardStatus === status.id);
-                const StatusIcon = status.Icon;
-                const statusMonthly = cards.reduce((sum, sub) => sum + sub.monthlyJpy, 0);
-                const isOver = dragOverStatus === status.id;
-
-                return (
-                  <div
-                    key={status.id}
-                    onDragOver={(event) => {
-                      event.preventDefault();
-                      event.dataTransfer.dropEffect = 'move';
-                      setDragOverStatus(status.id);
-                    }}
-                    onDragLeave={(event) => {
-                      if (!event.currentTarget.contains(event.relatedTarget)) setDragOverStatus('');
-                    }}
-                    onDrop={(event) => handleDrop(event, status.id)}
-                    className={`min-h-[250px] rounded-3xl border-2 p-3 transition ${status.column} ${isOver ? 'scale-[1.01] border-violet-500 ring-4 ring-violet-100' : ''}`}
-                  >
-                    <div className="mb-3 flex items-center justify-between gap-2 px-1">
-                      <div className="flex items-center gap-2">
-                        <span className={`flex h-9 w-9 items-center justify-center rounded-xl bg-white shadow-sm ${status.icon}`}>
-                          <StatusIcon className="h-5 w-5" />
-                        </span>
-                        <div>
-                          <div className="text-sm font-black text-slate-900">{status.label}</div>
-                          <div className="text-[11px] font-semibold text-slate-500">{status.description}</div>
-                        </div>
-                      </div>
-                      <div className="text-right">
-                        <div className={`inline-flex rounded-full px-2 py-1 text-[11px] font-black ${status.badge}`}>{cards.length}件</div>
-                        <div className="mt-1 text-[11px] font-bold text-slate-500">{formatCurrency(statusMonthly)}/月</div>
-                      </div>
-                    </div>
-
-                    <div className="space-y-2">
-                      {cards.map((sub) => (
-                        <SubscriptionCard
-                          key={sub.name}
-                          sub={sub}
-                          status={status.id}
-                          onDragStart={handleDragStart}
-                          onStatusChange={setSubscriptionStatus}
-                        />
-                      ))}
-
-                      {cards.length === 0 ? (
-                        <div className={`flex min-h-[150px] items-center justify-center rounded-2xl border-2 border-dashed text-center text-xs font-bold ${isOver ? 'border-violet-400 bg-violet-50 text-violet-700' : 'border-slate-300/70 text-slate-400'}`}>
-                          ここにドロップ
-                        </div>
-                      ) : null}
-                    </div>
+            <section>
+              <div className="section-heading"><h2>主要イベント</h2><button className="text-link" onClick={() => setShowAll((v) => !v)}>{showAll ? '閉じる' : 'すべて見る'} <ChevronRight size={17} /></button></div>
+              <div className="event-grid">
+                {focusEvents.map((event) => (
+                  <div className={`event-card ${event.amount > 0 ? 'positive' : ''}`} key={event.label}>
+                    <div className="event-top"><span className="event-icon"><EventIcon type={event.type} /></span><span className="event-date">{event.date}</span></div>
+                    <div className="event-label">{event.label}</div>
+                    <div className={event.amount > 0 ? 'money-plus event-amount' : 'money-minus event-amount'}>{signedYen(event.amount)}</div>
                   </div>
-                );
-              })}
-            </div>
-
-            <div className="mt-4 flex flex-col gap-2 border-t border-slate-700 pt-4 sm:flex-row sm:items-center sm:justify-between">
-              <div className="text-xs font-medium text-slate-300">
-                見直し候補はまだ課金中。スマホでは各カード下の状態ボタンでも変更可能
+                ))}
               </div>
-              <button
-                type="button"
-                onClick={resetSubscriptionBoard}
-                className="inline-flex items-center justify-center gap-2 rounded-xl bg-white/10 px-3 py-2 text-xs font-black text-white transition hover:bg-white/20"
-              >
-                <RotateCcw className="h-4 w-4" />
-                JSONの初期状態に戻す
+            </section>
+
+            <section className="chart-card">
+              <div className="chart-title-row">
+                <div><h2><TrendingUp size={21} /> 残高推移</h2><p>最低残高は {minPoint.date} の {yen(minPoint.balance)}</p></div>
+                <div className="min-pill">最低 {shortYen(minPoint.balance)}</div>
+              </div>
+              <div className="chart-wrap">
+                <ResponsiveContainer width="100%" height="100%">
+                  <AreaChart data={timeline} margin={{ top: 18, right: 8, bottom: 2, left: -10 }}>
+                    <defs><linearGradient id="balanceGlow" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="#76f7c5" stopOpacity="0.34" /><stop offset="100%" stopColor="#76f7c5" stopOpacity="0" /></linearGradient></defs>
+                    <CartesianGrid vertical={false} stroke="rgba(145,170,182,.13)" />
+                    <XAxis dataKey="date" tick={{ fill: '#9bb0ba', fontSize: 11 }} axisLine={false} tickLine={false} minTickGap={18} />
+                    <YAxis tickFormatter={shortYen} tick={{ fill: '#728993', fontSize: 10 }} axisLine={false} tickLine={false} width={48} />
+                    <Tooltip content={<BalanceTooltip />} />
+                    <ReferenceLine y={800000} stroke="#e6a92f" strokeDasharray="5 5" label={{ value: '注意 80万', fill: '#e6a92f', fontSize: 10, position: 'insideTopRight' }} />
+                    <Area type="monotone" dataKey="balance" stroke="#8df6d1" strokeWidth={3} fill="url(#balanceGlow)" dot={{ fill: '#e9fff8', stroke: '#45d8a3', r: 3 }} activeDot={{ r: 6 }} />
+                  </AreaChart>
+                </ResponsiveContainer>
+              </div>
+              <div className="chart-footnote"><ShieldCheck size={16} /> 80万円の注意ラインを {yen(minPoint.balance - 800000)} 上回る見込み</div>
+            </section>
+
+            <section className="summary-grid">
+              <button className="summary-card" onClick={() => setShowAll(true)}>
+                <div className="summary-title"><Home size={19} /> 固定費 <ChevronRight size={18} /></div><div className="summary-kicker">月額想定</div><div className="summary-value">{yen(fixedCost)}</div><div className="summary-sub">cashflow.json反映</div>
               </button>
-            </div>
-          </section>
+              <button className="summary-card salary-card" onClick={() => setShowAll(true)}>
+                <div className="summary-title"><Briefcase size={19} /> 次回給与 <ChevronRight size={18} /></div><div className="summary-kicker">{latestSalary?.date || '給与'}</div><div className="summary-value">{latestSalary ? yen(latestSalary.amount) : '未設定'}</div><div className="summary-sub">差引支給額</div>
+              </button>
+              <button className="summary-card subscription-summary" onClick={() => setScreen('subscriptions')}>
+                <div className="summary-title"><RefreshCw size={19} /> サブスク <ChevronRight size={18} /></div><div className="summary-kicker">月額合計</div><div className="summary-value">{yen(monthlySubscriptions)}</div><div className="summary-sub">{activeSubs.length}件を計上</div><div className="brand-strip">{activeSubs.slice(0, 5).map((sub) => <SubscriptionBadge key={sub.name} name={sub.name} />)}</div>
+              </button>
+            </section>
 
-          <section className="rounded-[26px] border border-slate-200 bg-white p-4 shadow-xl sm:p-6">
-            <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
-              <div>
-                <h2 className="flex items-center gap-2 text-2xl font-black text-slate-900">
-                  <TrendingUp className="h-6 w-6 text-blue-700" />
-                  残高推移
-                </h2>
-                <p className="mt-1 text-sm font-medium text-slate-500">最低は {minPoint.date} の {formatCurrency(minPoint.balance)}</p>
-              </div>
-              <div className={`rounded-full px-4 py-2 text-sm font-black ring-1 ${minPoint.balance >= 800000 ? 'bg-emerald-50 text-emerald-800 ring-emerald-200' : 'bg-amber-50 text-amber-800 ring-amber-200'}`}>
-                {minPoint.balance >= 800000 ? '安全ライン80万円を維持' : '安全ライン80万円を下回る'}
-              </div>
-            </div>
-
-            <div className="h-[320px] w-full sm:h-[420px]">
-              <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={timeline} margin={{ top: 18, right: 22, left: 8, bottom: 10 }}>
-                  <defs>
-                    <linearGradient id="balanceFill" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="0%" stopColor="#2563eb" stopOpacity={0.28} />
-                      <stop offset="100%" stopColor="#2563eb" stopOpacity={0.02} />
-                    </linearGradient>
-                  </defs>
-                  <CartesianGrid strokeDasharray="4 4" stroke="#d8e0ee" />
-                  <XAxis dataKey="date" tick={{ fontSize: 12, fontWeight: 700 }} interval={0} minTickGap={4} />
-                  <YAxis tickFormatter={formatShort} tick={{ fontSize: 12, fontWeight: 700 }} width={62} />
-                  <Tooltip content={<CustomTooltip />} />
-                  <ReferenceLine y={800000} stroke="#f59e0b" strokeDasharray="7 6" label={{ value: '安全ライン80万', fill: '#b45309', fontSize: 12, fontWeight: 800 }} />
-                  <Area type="monotone" dataKey="balance" stroke="#2563eb" strokeWidth={4} fill="url(#balanceFill)" dot={{ r: 4, strokeWidth: 2, fill: '#fff' }} activeDot={{ r: 8 }} />
-                  <Line type="monotone" dataKey="balance" stroke="#1d4ed8" strokeWidth={2} dot={false} />
-                </AreaChart>
-              </ResponsiveContainer>
-            </div>
-          </section>
-
-          <section className="grid grid-cols-1 gap-4 lg:grid-cols-[1fr_360px]">
-            <div className="rounded-[26px] border border-slate-200 bg-white p-4 shadow-xl sm:p-6">
-              <h2 className="mb-4 text-2xl font-black text-slate-900">詳細</h2>
-              <div className="overflow-x-auto">
-                <table className="w-full min-w-[720px] border-separate border-spacing-0 overflow-hidden rounded-2xl text-sm">
-                  <thead>
-                    <tr className="bg-blue-800 text-white">
-                      <th className="px-4 py-3 text-left">日付</th>
-                      <th className="px-4 py-3 text-left">項目</th>
-                      <th className="px-4 py-3 text-right">増減</th>
-                      <th className="px-4 py-3 text-right">残高</th>
-                      <th className="px-4 py-3 text-left">メモ</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {timeline.map((item, index) => {
-                      const meta = typeMeta[item.type] || typeMeta.base;
-                      const Icon = meta.Icon;
-                      return (
-                        <tr key={`${item.date}-${item.label}-${index}`} className={index === timeline.length - 1 ? 'bg-emerald-50' : 'odd:bg-white even:bg-slate-50'}>
-                          <td className="border-b border-slate-200 px-4 py-3 font-bold text-slate-700">{item.date}</td>
-                          <td className="border-b border-slate-200 px-4 py-3">
-                            <div className="flex items-center gap-2 font-bold text-slate-900">
-                              <span className={`inline-flex h-8 w-8 items-center justify-center rounded-full ${meta.bg} ${meta.color}`}><Icon className="h-4 w-4" /></span>
-                              {item.label}
-                            </div>
-                          </td>
-                          <td className={`border-b border-slate-200 px-4 py-3 text-right font-black ${item.amount >= 0 ? 'text-emerald-700' : 'text-rose-700'}`}>
-                            {item.amount === 0 ? '－' : formatSigned(item.amount)}
-                          </td>
-                          <td className="border-b border-slate-200 px-4 py-3 text-right font-black text-slate-900">{formatCurrency(item.balance)}</td>
-                          <td className="border-b border-slate-200 px-4 py-3 text-slate-500">{item.note}</td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-
-            <aside className="space-y-4">
-              <div className="rounded-[26px] border border-slate-200 bg-white p-5 shadow-xl">
-                <h2 className="flex items-center gap-2 text-xl font-black text-slate-900"><PiggyBank className="h-5 w-5 text-emerald-700" />概略</h2>
-                <div className="mt-4 space-y-3">
-                  <div className="flex justify-between border-b border-slate-100 pb-2"><span className="text-slate-500">収入合計</span><span className="font-black text-emerald-700">{formatCurrency(incomeTotal)}</span></div>
-                  <div className="flex justify-between border-b border-slate-100 pb-2"><span className="text-slate-500">支出合計</span><span className="font-black text-rose-700">{formatCurrency(expenseTotal)}</span></div>
-                  <div className="flex justify-between border-b border-slate-100 pb-2"><span className="text-slate-500">純増減</span><span className="font-black text-blue-700">{formatSigned(netChange)}</span></div>
-                  <div className="flex justify-between"><span className="text-slate-500">最終残高</span><span className="font-black text-slate-900">{formatCurrency(finalPoint.balance)}</span></div>
-                </div>
-              </div>
-
-              <div className="rounded-[26px] border border-slate-200 bg-white p-5 shadow-xl">
-                <h2 className="mb-4 text-xl font-black text-slate-900">月ごとの純増減</h2>
-                <div className="space-y-3">
-                  {monthRows.map((row) => (
-                    <div key={row.month}>
-                      <div className="mb-1 flex justify-between text-sm font-bold"><span>{row.month}</span><span className={row.net >= 0 ? 'text-emerald-700' : 'text-rose-700'}>{formatSigned(row.net)}</span></div>
-                      <div className="h-3 overflow-hidden rounded-full bg-slate-100">
-                        <div className={row.net >= 0 ? 'h-full bg-emerald-500' : 'h-full bg-rose-500'} style={{ width: `${Math.min(Math.abs(row.net) / 700000 * 100, 100)}%` }} />
-                      </div>
+            {showAll && (
+              <section className="timeline-panel">
+                <div className="section-heading"><h2>入出金詳細</h2><button className="icon-button small" onClick={() => setShowAll(false)}><X size={18} /></button></div>
+                <div className="timeline-list">
+                  {timeline.map((item) => (
+                    <div className="timeline-row" key={`${item.date}-${item.label}`}>
+                      <div className="timeline-date">{item.date}</div>
+                      <div className="timeline-body"><strong>{item.label}</strong><span>{item.note}</span></div>
+                      <div className="timeline-money"><span className={item.amount > 0 ? 'money-plus' : item.amount < 0 ? 'money-minus' : ''}>{item.amount === 0 ? '基準' : signedYen(item.amount)}</span><small>{yen(item.balance)}</small></div>
                     </div>
                   ))}
                 </div>
-              </div>
+              </section>
+            )}
+          </main>
+        ) : (
+          <main className="content-stack subscription-screen">
+            <section className="subscription-hero">
+              <div><span>月額合計</span><strong>{yen(monthlySubscriptions)}</strong></div>
+              <div><span>年間合計</span><strong>{yen(annualSubscriptions)}</strong></div>
+              <div><span>見直し候補</span><strong>{yen(reviewMonthly)}</strong></div>
+            </section>
 
-              <div className="rounded-[26px] border border-emerald-200 bg-emerald-50 p-5 shadow-xl">
-                <h2 className="flex items-center gap-2 text-lg font-black text-emerald-900"><CheckCircle2 className="h-5 w-5" />反映ルール</h2>
-                <ul className="mt-3 space-y-2 text-sm font-bold leading-6 text-emerald-900">
-                  {cashflow.flags?.map((flag) => <li key={flag}>・{flag}</li>)}
-                </ul>
-              </div>
-            </aside>
-          </section>
-        </main>
+            <div className="subscription-toolbar"><div><RefreshCw size={17} /> カードをドラッグして状態変更</div><button onClick={resetStatuses}><RotateCcw size={16} /> JSON初期状態</button></div>
+
+            {Object.entries(statusMeta).map(([status, meta]) => {
+              const rows = subscriptionRows.filter((sub) => sub.status === status);
+              const total = rows.reduce((sum, sub) => sum + sub.monthlyJpy, 0);
+              return (
+                <section className={`status-column ${meta.tone}`} key={status} onDragOver={(event) => event.preventDefault()} onDrop={(event) => dropStatus(event, status)}>
+                  <div className="status-header"><div><span className="status-dot" /> {meta.label}</div><span>{rows.length}件 ・ {yen(total)}/月</span></div>
+                  <div className="subscription-list">{rows.length ? rows.map((sub) => <SubscriptionCard key={sub.name} sub={sub} onDragStart={startDrag} onStatusChange={setSubStatus} />) : <div className="empty-drop">ここにドロップ</div>}</div>
+                </section>
+              );
+            })}
+
+            <section className="savings-card"><div><span>解約済みによる削減</span><strong>{yen(cancelledMonthly)}/月</strong></div><div className="savings-year">年間 {yen(cancelledMonthly * 12)}</div></section>
+          </main>
+        )}
+
+        <nav className="bottom-nav">
+          <button className={screen === 'home' ? 'active' : ''} onClick={() => setScreen('home')}><Home size={21} /><span>ホーム</span></button>
+          <button onClick={() => { setScreen('home'); setShowAll(true); }}><ArrowUpDown size={21} /><span>入出金</span></button>
+          <button className="nav-plus" onClick={() => setUpdateHelp(true)}><Plus size={26} /></button>
+          <button className={screen === 'subscriptions' ? 'active' : ''} onClick={() => setScreen('subscriptions')}><RefreshCw size={21} /><span>サブスク</span></button>
+          <button onClick={() => setScreen('home')}><PieChart size={21} /><span>資産</span></button>
+        </nav>
       </div>
+
+      {updateHelp && (
+        <div className="modal-backdrop" onClick={() => setUpdateHelp(false)}>
+          <div className="update-modal" onClick={(e) => e.stopPropagation()}>
+            <button className="modal-close" onClick={() => setUpdateHelp(false)}><X size={20} /></button><div className="modal-icon"><Check size={24} /></div><h2>データ更新</h2><p>ChatGPTで「9月給与を61万円にして」「Netflixを解約済みにして」のように送れば、JSON更新後にサイトへ自動反映する構成</p>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
