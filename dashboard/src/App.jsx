@@ -29,7 +29,7 @@ import {
   X,
 } from 'lucide-react';
 
-const APP_VERSION = '1.2.0';
+const APP_VERSION = '1.3.0';
 
 const yen = (value) => `${new Intl.NumberFormat('ja-JP', { maximumFractionDigits: 0 }).format(value)}円`;
 const signedYen = (value) => `${value >= 0 ? '+' : '-'}${yen(Math.abs(value))}`;
@@ -193,7 +193,7 @@ export default function App() {
   const finalPoint = timeline[timeline.length - 1];
   const fixedCost = Math.abs([...cashflow.events].reverse().find((e) => e.type === 'fixed')?.amount || 0);
   const latestSalary = [...cashflow.events].reverse().find((e) => e.type === 'income' && e.label.includes('給与'));
-  const focusEvents = cashflow.events.slice(-3);
+  const focusEvents = cashflow.events.slice(-3).reverse();
   const activeSubs = subscriptionRows.filter((sub) => sub.status !== 'cancelled');
   const monthlySubscriptions = activeSubs.reduce((sum, sub) => sum + sub.monthlyJpy, 0);
   const annualSubscriptions = monthlySubscriptions * 12;
@@ -293,9 +293,9 @@ export default function App() {
 
             {showAll && (
               <section className="timeline-panel">
-                <div className="section-heading"><h2>入出金詳細</h2><button className="icon-button small" onClick={() => setShowAll(false)}><X size={18} /></button></div>
+                <div className="section-heading"><h2>入出金詳細（新しい順）</h2><button className="icon-button small" onClick={() => setShowAll(false)}><X size={18} /></button></div>
                 <div className="timeline-list">
-                  {timeline.map((item) => (
+                  {[...timeline].reverse().map((item) => (
                     <div className="timeline-row" key={`${item.date}-${item.label}`}>
                       <div className="timeline-date">{item.date}</div>
                       <div className="timeline-body"><strong>{item.label}</strong><span>{item.note}</span></div>
