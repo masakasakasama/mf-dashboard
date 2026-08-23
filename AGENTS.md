@@ -5,65 +5,101 @@
 This task belongs ONLY to the repository `masakasakasama/mf-dashboard`.
 
 - Do not inspect, modify, commit, push, build, release, or deploy any other repository for this task
-- In particular, do NOT touch `Money_management`, `money-pilot-debug.apk`, Android APK release workflows, Android branches, or Android Studio projects
+- In particular, do NOT touch `Money_management`, Android APKs, Android release workflows, Android branches, or Android Studio projects
 - The target product is the Web dashboard in `masakasakasama/mf-dashboard`
 - The deployment target is GitHub Pages for `mf-dashboard`
-- This project is WEB-ONLY. Do not create an APK, Android app, Play Store package, or Android release for this project
-- The site is installable as a PWA, but updates must be delivered by GitHub Pages so the user never needs to reinstall an app for routine changes
-- Before making any change, verify the current git remote/repository is `masakasakasama/mf-dashboard`
-- If the current workspace is another repository, STOP and switch/open `masakasakasama/mf-dashboard`; do not adapt the task to the other repository
+- This project is WEB-ONLY
+- Before making any change, verify the current repository is `masakasakasama/mf-dashboard`
 
-## Normal update workflow
+## Normal finance update workflow
 
-For routine finance updates, do not edit React code.
+Routine finance updates must be data-only.
 
-Only edit these JSON files:
+Only edit:
 
-- `dashboard/public/cashflow.json` for balances, salaries, card bills, fixed costs, bonuses, and one-off expenses
-- `dashboard/public/subscriptions.json` for subscription plans, prices, splits, tax, FX, billing cycle, and default contract status
+- `dashboard/public/cashflow.json` for current balance and future income/expense events
+- `dashboard/public/subscriptions.json` for subscription data
 
-After editing JSON, commit directly to `main`. A push to `main` automatically builds and deploys the GitHub Pages site. Routine data updates must never require an APK/app update.
+Do NOT edit React/CSS/workflows for an ordinary balance or amount update.
 
-## Cashflow rules
+The deployed Web UI fetches these JSON files directly from GitHub `main` with cache-busting. Therefore a routine JSON update must become visible without rebuilding the Web app. GitHub Pages deployment is only required when the UI shell/code changes.
 
+## Single-source-of-truth cashflow rules
+
+`cashflow.json` is the only source of truth for all balance figures.
+
+- `start.balance` = current actual bank balance at the stated `start.date`
+- `events` = only transactions not yet reflected in `start.balance`
+- Never re-add transactions already included in the current actual balance
 - Preserve chronological order in `events`
-- Positive `amount` means income, negative `amount` means expense
+- Positive `amount` = income, negative `amount` = expense
 - Keep `type` as one of `income`, `card`, `fixed`, `special`
-- JALカードSuicaゴールド is the View card payment. Do not add a separate generic View card line for the same bill
-- Do not double-count a transaction when date, merchant/label, and amount identify the same charge
-- Do not infer or add an expense that the user explicitly said to exclude
-- Update `updatedAt`, `subtitle`, and `flags` when assumptions change
+- JALカードSuicaゴールド is the View card payment. Never double-count it as a second generic View payment
+- If a card bill already includes a purchase such as the engagement ring, never add the purchase again as a separate event
+
+All UI-derived values must come from `dashboard/src/financeModel.js` and never be hardcoded in JSX:
+
+- current balance
+- projected balance
+- projected date/label
+- minimum balance
+- salary amount/date/label
+- chart points
+- summary cards
+- history boundary text
+
+When `start.balance` or any `events[].amount` changes, every one of those displays must change automatically from the same model. Do not add hardcoded dates such as `8/23`, `8/26`, labels such as `8月給与`, or manually copied projected balances in `App.jsx`.
+
+## Data freshness architecture
+
+- `dashboard/src/dataSource.js` fetches canonical JSON from `raw.githubusercontent.com/.../main/dashboard/public`
+- Add a cache-busting query parameter for every request
+- The deployed copy under GitHub Pages is fallback only
+- Do not restore service-worker caching for finance JSON
+- Do not add duplicate local data constants in React
 
 ## Subscription rules
 
 - Use `billing: monthly` or `annual`
 - Use `currency: JPY` or `USD`
-- `split` is the number of people sharing the cost. Example: Netflix split 50/50 uses `split: 2`
+- `split` is the number of people sharing the cost
 - For USD subscriptions, use `taxRate` and `fxRate`
-- If the actual JPY charge is known, set `monthlyJpyOverride` and it takes priority over FX calculation
-- `status` must be one of `active`, `review`, `cancelled`
-  - `active`: currently subscribed and counted in monthly/annual cost
-  - `review`: still subscribed, counted in cost, but shown as a review candidate
-  - `cancelled`: excluded from current subscription cost
-- Drag-and-drop changes in the site are stored only in that browser's localStorage. To make a status canonical across devices, update `status` in `subscriptions.json`
-- Update `updatedAt` and `note` when plan or pricing assumptions change
+- If the actual JPY charge is known, `monthlyJpyOverride` takes priority
+- `status` must be `active`, `review`, or `cancelled`
+- Browser drag-and-drop status is localStorage only; canonical status is in `subscriptions.json`
 
-## PWA/site rules
+## UI rules
 
-- Keep `dashboard/public/manifest.webmanifest` and `dashboard/public/sw.js`
-- Keep `dashboard/src/main.jsx` service-worker registration intact unless explicitly changing PWA behavior
-- `cashflow.json` and `subscriptions.json` must always be fetched fresh; do not make the service worker serve stale finance data
-- The site must remain usable from a normal browser URL without installation
-- Home-screen installation is optional convenience only; it is not a separate app release channel
+- Do not add buttons that have no meaningful action
+- Keep only useful navigation/actions
+- Version must have one source of truth: `dashboard/package.json`; React reads that version rather than duplicating a literal version string
+- Do not reintroduce duplicate CSS overrides solely to inject version text
+
+## Deployment rules
+
+- JSON-only changes must not require a Web rebuild to become visible
+- UI/code changes trigger GitHub Pages deployment through `.github/workflows/deploy.yml`
+- Do not add `cashflow.json` or `subscriptions.json` back to the push path filter for deployment unless the architecture changes
 
 ## Validation
 
-Before committing:
+For JSON-only updates:
 
 ```bash
 python -m json.tool dashboard/public/cashflow.json > /dev/null
 python -m json.tool dashboard/public/subscriptions.json > /dev/null
+```
+
+For UI/code changes:
+
+```bash
 cd dashboard && npm install && npm run build
 ```
 
-Do not edit `dashboard/src/App.jsx` or `.github/workflows/deploy.yml` for ordinary numeric updates unless the user explicitly requests a UI/schema/deployment change.
+Before finishing any finance change, verify mathematically that:
+
+```text
+projected balance = start.balance + sum(events[].amount)
+```
+
+and confirm the UI reads the projected balance only from `financeModel.js`.
