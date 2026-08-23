@@ -23,8 +23,11 @@ import {
   Wallet,
   X,
 } from 'lucide-react';
+import packageMeta from '../package.json';
+import { loadDashboardData } from './dataSource.js';
+import { buildCashflowModel } from './financeModel.js';
 
-const APP_VERSION = '1.4.0';
+const APP_VERSION = packageMeta.version;
 
 const yen = (value) => `${new Intl.NumberFormat('ja-JP', { maximumFractionDigits: 0 }).format(value)}円`;
 const signedYen = (value) => `${value >= 0 ? '+' : '-'}${yen(Math.abs(value))}`;
@@ -43,22 +46,6 @@ const brandMeta = {
   'Amazon Prime': { mark: 'a', className: 'brand-amazon' },
   'ChatGPT Plus': { mark: '◎', className: 'brand-chatgpt' },
 };
-
-function buildTimeline(cashflow) {
-  const seed = [{
-    date: cashflow.start.date,
-    label: cashflow.start.label,
-    amount: 0,
-    balance: cashflow.start.balance,
-    type: 'base',
-    note: cashflow.start.note,
-  }];
-
-  return cashflow.events.reduce((acc, event) => {
-    acc.push({ ...event, balance: acc[acc.length - 1].balance + event.amount });
-    return acc;
-  }, seed);
-}
 
 function subscriptionMonthlyJpy(sub) {
   if (Number.isFinite(sub.monthlyJpyOverride)) return sub.monthlyJpyOverride;
@@ -111,7 +98,7 @@ function SubscriptionCard({ sub, onDragStart, onStatusChange }) {
         <div>{originalPrice(sub)}</div>
         <strong>{yen(sub.monthlyJpy)}/月</strong>
       </div>
-      <select className="status-select" value={sub.status} onChange={(e) => onStatusChange(sub.name, e.target.value)} aria-label={`${sub.name} の契約状態`}>
+      <select className="status-select" value={sub.status} onChange={(event) => onStatusChange(sub.name, event.target.value)} aria-label={`${sub.name} の契約状態`}>
         <option value="active">契約中</option>
         <option value="review">見直し候補</option>
         <option value="cancelled">解約済み</option>
@@ -129,16 +116,7 @@ export default function App() {
   const [error, setError] = useState('');
 
   useEffect(() => {
-    Promise.all([
-      fetch(`${import.meta.env.BASE_URL}cashflow.json`, { cache: 'no-store' }).then((res) => {
-        if (!res.ok) throw new Error('cashflow.json の読み込みに失敗');
-        return res.json();
-      }),
-      fetch(`${import.meta.env.BASE_URL}subscriptions.json`, { cache: 'no-store' }).then((res) => {
-        if (!res.ok) throw new Error('subscriptions.json の読み込みに失敗');
-        return res.json();
-      }),
-    ])
+    loadDashboardData()
       .then(([cashflowData, subscriptionData]) => {
         setCashflow(cashflowData);
         setSubscriptions(subscriptionData);
@@ -153,7 +131,16 @@ export default function App() {
       .catch((err) => setError(err.message));
   }, []);
 
-  const timeline = useMemo(() => (cashflow ? buildTimeline(cashflow) : []), [cashflow]);
+  const cashflowModel = useMemo(() => {
+    if (!cashflow) return null;
+    try {
+      return buildCashflowModel(cashflow);
+    } catch (err) {
+      setError(err.message);
+      return null;
+    }
+  }, [cashflow]);
+
   const subscriptionRows = useMemo(() => {
     if (!subscriptions) return [];
     return subscriptions.subscriptions.map((sub) => ({
@@ -167,13 +154,11 @@ export default function App() {
     return <div className="app-shell error-shell"><div className="error-card"><X size={28} /><h1>データを読み込めない</h1><p>{error}</p></div></div>;
   }
 
-  if (!cashflow || !subscriptions || !timeline.length) {
+  if (!cashflow || !subscriptions || !cashflowModel) {
     return <div className="app-shell loading-shell"><RefreshCw className="spin" size={34} /></div>;
   }
 
-  const minPoint = timeline.reduce((min, item) => (item.balance < min.balance ? item : min), timeline[0]);
-  const finalPoint = timeline[timeline.length - 1];
-  const latestSalary = [...cashflow.events].reverse().find((event) => event.type === 'income' && event.label.includes('給与'));
+  const { timeline, current, futureEvents, projected, minimum, latestSalary, projectionLabel, historyBoundaryLabel } = cashflowModel;
   const activeSubs = subscriptionRows.filter((sub) => sub.status !== 'cancelled');
   const monthlySubscriptions = activeSubs.reduce((sum, sub) => sum + sub.monthlyJpy, 0);
   const annualSubscriptions = monthlySubscriptions * 12;
@@ -215,8 +200,8 @@ export default function App() {
             <section className="balance-hero">
               <div className="hero-copy">
                 <div className="eyebrow">現在残高 <Eye size={17} /></div>
-                <div className="hero-amount">{yen(cashflow.start.balance)}</div>
-                <div className="hero-meta">{cashflow.start.date} 時点 ・ {cashflow.start.note}</div>
+                <div className="hero-amount">{yen(current.balance)}</div>
+                <div className="hero-meta">{current.date} 時点 ・ {current.note}</div>
               </div>
               <div className="shield-art"><ShieldCheck size={66} strokeWidth={1.7} /></div>
             </section>
@@ -224,7 +209,7 @@ export default function App() {
             <section>
               <div className="section-heading"><h2>これからの入出金</h2><button className="text-link" onClick={() => setShowAll(true)}>詳細 <ArrowUpDown size={17} /></button></div>
               <div className="event-grid future-event-grid">
-                {cashflow.events.map((event) => (
+                {futureEvents.map((event) => (
                   <div className={`event-card ${event.amount > 0 ? 'positive' : ''}`} key={`${event.date}-${event.label}`}>
                     <div className="event-top"><span className="event-icon"><EventIcon type={event.type} /></span><span className="event-date">{event.date}</span></div>
                     <div className="event-label">{event.label}</div>
@@ -236,8 +221,8 @@ export default function App() {
 
             <section className="chart-card">
               <div className="chart-title-row">
-                <div><h2><TrendingUp size={21} /> 残高見込み</h2><p>{finalPoint.date} 支払後 {yen(finalPoint.balance)}</p></div>
-                <div className="min-pill">最低 {shortYen(minPoint.balance)}</div>
+                <div><h2><TrendingUp size={21} /> 残高見込み</h2><p>{projectionLabel} {yen(projected.balance)}</p></div>
+                <div className="min-pill">最低 {shortYen(minimum.balance)}</div>
               </div>
               <div className="chart-wrap">
                 <ResponsiveContainer width="100%" height="100%">
@@ -252,21 +237,21 @@ export default function App() {
                   </AreaChart>
                 </ResponsiveContainer>
               </div>
-              <div className="chart-footnote"><ShieldCheck size={16} /> 8/23以前は現在残高に反映済み。二重計上なし</div>
+              <div className="chart-footnote"><ShieldCheck size={16} /> {historyBoundaryLabel}。二重計上なし</div>
             </section>
 
             <section className="summary-grid refactored-summary">
               <div className="summary-card projection-card">
-                <div className="summary-title"><ShieldCheck size={19} /> 8/26支払後</div>
+                <div className="summary-title"><ShieldCheck size={19} /> {projectionLabel}</div>
                 <div className="summary-kicker">見込残高</div>
-                <div className="summary-value">{yen(finalPoint.balance)}</div>
-                <div className="summary-sub">婚約指輪はカード請求内</div>
+                <div className="summary-value">{yen(projected.balance)}</div>
+                <div className="summary-sub">未来イベントをすべて自動反映</div>
               </div>
               <div className="summary-card salary-card">
-                <div className="summary-title"><Briefcase size={19} /> 8月給与</div>
-                <div className="summary-kicker">{latestSalary?.date || ''}</div>
+                <div className="summary-title"><Briefcase size={19} /> {latestSalary?.label || '給与予定'}</div>
+                <div className="summary-kicker">{latestSalary?.date || '未設定'}</div>
                 <div className="summary-value">{latestSalary ? yen(latestSalary.amount) : '未設定'}</div>
-                <div className="summary-sub">差引支給額</div>
+                <div className="summary-sub">cashflow.jsonから自動取得</div>
               </div>
               <button className="summary-card subscription-summary wide-summary" onClick={() => setScreen('subscriptions')}>
                 <div className="summary-title"><RefreshCw size={19} /> サブスク</div>
@@ -317,7 +302,7 @@ export default function App() {
           </main>
         )}
 
-        <footer className="app-version">v{APP_VERSION} ・ {cashflow.updatedAt?.slice(0, 10) || ''}</footer>
+        <footer className="app-version">v{APP_VERSION} ・ data {cashflow.updatedAt?.slice(0, 16).replace('T', ' ') || ''}</footer>
 
         <nav className="bottom-nav three-tab-nav">
           <button className={screen === 'home' && !showAll ? 'active' : ''} onClick={() => { setScreen('home'); setShowAll(false); }}><Home size={21} /><span>ホーム</span></button>
