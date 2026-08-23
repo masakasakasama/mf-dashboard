@@ -1,12 +1,12 @@
 {
-  "name": "Money Dashboard",
-  "short_name": "Money",
-  "description": "収支・カード・サブスクを管理する個人用ダッシュボード",
+  "name": "金管理",
+  "short_name": "金管理",
+  "description": "収支・カード・サブスクをまとめて管理する個人用ダッシュボード",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",
-  "background_color": "#020617",
-  "theme_color": "#020617",
+  "background_color": "#020608",
+  "theme_color": "#020608",
   "orientation": "portrait-primary",
   "icons": [
     {
