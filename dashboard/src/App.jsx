@@ -29,7 +29,7 @@ import {
   X,
 } from 'lucide-react';
 
-const APP_VERSION = '1.1.0';
+const APP_VERSION = '1.2.0';
 
 const yen = (value) => `${new Intl.NumberFormat('ja-JP', { maximumFractionDigits: 0 }).format(value)}円`;
 const signedYen = (value) => `${value >= 0 ? '+' : '-'}${yen(Math.abs(value))}`;
