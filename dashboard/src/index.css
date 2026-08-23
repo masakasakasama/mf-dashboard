@@ -32,7 +32,7 @@ button { border: 0; cursor: pointer; }
   min-height: 100vh;
   margin: 0 auto;
   position: relative;
-  padding-bottom: 102px;
+  padding-bottom: 112px;
 }
 .loading-shell, .error-shell { display: grid; place-items: center; }
 .spin { animation: spin 1s linear infinite; color: #65efbb; }
@@ -56,6 +56,9 @@ button { border: 0; cursor: pointer; }
   padding: 16px 20px 8px;
 }
 .brand-lockup { display: flex; align-items: center; gap: 12px; font-size: 26px; font-weight: 900; letter-spacing: -.03em; }
+.brand-text { display: grid; gap: 2px; }
+.brand-text > span { line-height: 1.05; }
+.brand-text > small { color: #6f8b81; font-size: 10px; font-weight: 900; letter-spacing: .08em; }
 .app-icon {
   width: 48px;
   height: 48px;
@@ -111,7 +114,7 @@ button { border: 0; cursor: pointer; }
 .hero-copy { position: relative; z-index: 2; min-width: 0; }
 .eyebrow { display: flex; align-items: center; gap: 8px; color: #c6ddd6; font-size: 15px; font-weight: 800; }
 .hero-amount { margin-top: 12px; font-size: clamp(38px, 8vw, 64px); line-height: 1; font-weight: 950; letter-spacing: -.055em; white-space: nowrap; }
-.hero-meta { margin-top: 14px; color: #87aa9f; font-size: 12px; font-weight: 700; }
+.hero-meta { margin-top: 14px; color: #87aa9f; font-size: 12px; font-weight: 700; line-height: 1.6; }
 .shield-art {
   position: relative;
   z-index: 2;
@@ -236,50 +239,36 @@ button { border: 0; cursor: pointer; }
 .subscription-hero > div { min-width: 0; padding: 20px 16px; border-right: 1px solid rgba(123, 235, 193, .15); }
 .subscription-hero > div:last-child { border-right: 0; }
 .subscription-hero span { display: block; color: #9cc1b3; font-size: 11px; font-weight: 800; }
-.subscription-hero strong { display: block; margin-top: 7px; color: #50e4a4; font-size: clamp(18px, 4.8vw, 30px); line-height: 1.05; letter-spacing: -.04em; overflow-wrap: anywhere; }
-.subscription-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 10px; color: #8ea5ac; font-size: 12px; font-weight: 800; }
+.subscription-hero strong { display: block; margin-top: 7px; color: #50e4a4; font-size: clamp(18px, 4.8vw, 30px); line-height: 1.05; letter-spacing: -.04em; }
+.subscription-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 10px; color: #8ca59d; font-size: 11px; font-weight: 800; }
 .subscription-toolbar > div { display: flex; align-items: center; gap: 7px; }
-.subscription-toolbar button { display: inline-flex; align-items: center; gap: 6px; padding: 8px 10px; border-radius: 12px; color: #66ddb0; background: rgba(38, 178, 127, .08); border: 1px solid rgba(80, 223, 169, .2); font-size: 11px; font-weight: 900; }
-
-.status-column {
-  padding: 14px;
-  border-radius: 24px;
-  border: 1px solid rgba(131, 159, 168, .2);
-  background: linear-gradient(180deg, rgba(10, 27, 33, .96), rgba(5, 17, 21, .98));
-}
-.status-column.active { border-color: rgba(73, 224, 166, .25); }
-.status-column.review { border-color: rgba(234, 176, 62, .28); }
-.status-column.cancelled { opacity: .78; }
-.status-header { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 2px 4px 12px; font-size: 12px; font-weight: 900; }
-.status-header > div { display: flex; align-items: center; gap: 8px; font-size: 16px; }
-.status-header > span { color: #83979d; font-size: 11px; }
-.status-dot { width: 9px; height: 9px; border-radius: 50%; background: #4de09f; box-shadow: 0 0 14px rgba(77, 224, 159, .5); }
-.review .status-dot { background: #e4a62f; box-shadow: 0 0 14px rgba(228, 166, 47, .35); }
-.cancelled .status-dot { background: #76848a; box-shadow: none; }
-.subscription-list { display: grid; gap: 8px; }
-.subscription-card {
-  display: grid;
-  grid-template-columns: 20px 42px minmax(0, 1fr) auto auto;
-  gap: 10px;
-  align-items: center;
-  padding: 11px 12px;
-  border-radius: 18px;
-  border: 1px solid rgba(136, 162, 171, .2);
-  background: linear-gradient(150deg, rgba(19, 38, 45, .95), rgba(8, 21, 26, .98));
-}
-.subscription-card:active { cursor: grabbing; }
-.drag-grip { color: #667a81; cursor: grab; }
+.subscription-toolbar button { display: flex; align-items: center; gap: 5px; padding: 8px 10px; border-radius: 12px; color: #82e7bd; background: rgba(40, 155, 115, .12); }
+.status-column { border-radius: 22px; border: 1px solid rgba(131, 158, 166, .2); overflow: hidden; background: rgba(8, 21, 26, .8); }
+.status-column.active { border-color: rgba(76, 228, 170, .24); }
+.status-column.review { border-color: rgba(233, 177, 53, .28); }
+.status-column.cancelled { opacity: .72; }
+.status-header { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 14px 15px; border-bottom: 1px solid rgba(131, 158, 166, .12); color: #dbe8e4; font-size: 12px; font-weight: 900; }
+.status-header > div { display: flex; align-items: center; gap: 7px; }
+.status-header > span { color: #80969d; font-size: 10px; }
+.status-dot { width: 9px; height: 9px; border-radius: 50%; background: #45dd9f; }
+.review .status-dot { background: #e7ae35; }
+.cancelled .status-dot { background: #74858b; }
+.subscription-list { display: grid; gap: 8px; padding: 10px; }
+.subscription-card { display: grid; grid-template-columns: 22px 44px minmax(0, 1fr) auto auto; align-items: center; gap: 10px; padding: 11px; border-radius: 16px; border: 1px solid rgba(123, 151, 160, .16); background: linear-gradient(145deg, rgba(16, 34, 40, .98), rgba(7, 20, 25, .98)); }
+.drag-grip { color: #61767e; cursor: grab; }
 .subscription-main { min-width: 0; }
-.subscription-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: #edf7f4; font-size: 13px; font-weight: 950; }
-.subscription-plan { margin-top: 3px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: #7d939a; font-size: 10px; font-weight: 700; }
-.subscription-price { min-width: 85px; text-align: right; color: #b7c7cb; font-size: 10px; font-weight: 800; }
-.subscription-price strong { display: block; margin-top: 3px; color: #54e4a7; font-size: 12px; }
-.status-select { max-width: 100px; padding: 7px 8px; border-radius: 10px; border: 1px solid rgba(115, 145, 154, .22); background: #0b1a20; color: #a9bec4; font-size: 10px; font-weight: 900; outline: none; }
-.empty-drop { display: grid; place-items: center; min-height: 68px; border: 1px dashed rgba(123, 151, 160, .24); border-radius: 16px; color: #566c73; font-size: 11px; font-weight: 800; }
-.savings-card { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 18px; border-radius: 22px; border: 1px solid rgba(72, 224, 165, .26); background: linear-gradient(145deg, rgba(5, 58, 43, .96), rgba(5, 24, 21, .98)); }
+.subscription-name { color: #edf7f4; font-size: 13px; font-weight: 950; }
+.subscription-plan { margin-top: 3px; color: #7d9298; font-size: 10px; font-weight: 700; }
+.subscription-price { min-width: 92px; text-align: right; color: #91a6ab; font-size: 10px; font-weight: 800; }
+.subscription-price strong { display: block; margin-top: 3px; color: #56e6a9; font-size: 12px; }
+.status-select { padding: 7px 8px; border: 1px solid rgba(114, 143, 151, .18); border-radius: 10px; color: #a9bbb7; background: #09191e; font-size: 10px; font-weight: 900; }
+.empty-drop { padding: 26px 10px; text-align: center; border: 1px dashed rgba(116, 145, 153, .24); border-radius: 14px; color: #667b82; font-size: 11px; }
+.savings-card { display: flex; align-items: center; justify-content: space-between; gap: 14px; padding: 18px; border-radius: 22px; border: 1px solid rgba(81, 227, 171, .28); background: linear-gradient(145deg, rgba(5, 60, 45, .92), rgba(4, 29, 24, .98)); }
 .savings-card span { display: block; color: #8eb7a8; font-size: 11px; font-weight: 800; }
 .savings-card strong { display: block; margin-top: 4px; color: #52e4a7; font-size: 24px; font-weight: 950; }
 .savings-year { color: #9fb7b0; font-size: 12px; font-weight: 900; }
+
+.app-version { padding: 0 18px 88px; text-align: center; color: #526b63; font-size: 9px; font-weight: 800; letter-spacing: .05em; }
 
 .bottom-nav {
   position: fixed;
@@ -290,7 +279,7 @@ button { border: 0; cursor: pointer; }
   width: min(calc(100% - 24px), 796px);
   height: 72px;
   display: grid;
-  grid-template-columns: 1fr 1fr 72px 1fr 1fr;
+  grid-template-columns: 1fr 1fr 72px 1fr;
   align-items: center;
   gap: 2px;
   padding: 7px 10px;
@@ -328,7 +317,7 @@ button { border: 0; cursor: pointer; }
   .content-stack { padding-left: 12px; padding-right: 12px; gap: 15px; }
   .balance-hero { min-height: 154px; padding: 21px 20px; border-radius: 23px; }
   .hero-amount { font-size: clamp(34px, 10.5vw, 48px); }
-  .hero-meta { margin-top: 10px; }
+  .hero-meta { margin-top: 10px; font-size: 10px; }
   .shield-art { flex-basis: 74px; width: 74px; height: 88px; border-radius: 26px; }
   .shield-art svg { width: 54px; height: 54px; }
   .event-grid { gap: 7px; }
