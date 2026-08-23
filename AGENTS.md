@@ -8,6 +8,8 @@ This task belongs ONLY to the repository `masakasakasama/mf-dashboard`.
 - In particular, do NOT touch `Money_management`, `money-pilot-debug.apk`, Android APK release workflows, Android branches, or Android Studio projects
 - The target product is the Web dashboard in `masakasakasama/mf-dashboard`
 - The deployment target is GitHub Pages for `mf-dashboard`
+- This project is WEB-ONLY. Do not create an APK, Android app, Play Store package, or Android release for this project
+- The site is installable as a PWA, but updates must be delivered by GitHub Pages so the user never needs to reinstall an app for routine changes
 - Before making any change, verify the current git remote/repository is `masakasakasama/mf-dashboard`
 - If the current workspace is another repository, STOP and switch/open `masakasakasama/mf-dashboard`; do not adapt the task to the other repository
 
@@ -20,7 +22,7 @@ Only edit these JSON files:
 - `dashboard/public/cashflow.json` for balances, salaries, card bills, fixed costs, bonuses, and one-off expenses
 - `dashboard/public/subscriptions.json` for subscription plans, prices, splits, tax, FX, billing cycle, and default contract status
 
-After editing JSON, commit directly to `main`. A push to `main` automatically builds and deploys the GitHub Pages app.
+After editing JSON, commit directly to `main`. A push to `main` automatically builds and deploys the GitHub Pages site. Routine data updates must never require an APK/app update.
 
 ## Cashflow rules
 
@@ -43,8 +45,16 @@ After editing JSON, commit directly to `main`. A push to `main` automatically bu
   - `active`: currently subscribed and counted in monthly/annual cost
   - `review`: still subscribed, counted in cost, but shown as a review candidate
   - `cancelled`: excluded from current subscription cost
-- Drag-and-drop changes in the app are stored only in that browser's localStorage. To make a status canonical across devices, update `status` in `subscriptions.json`
+- Drag-and-drop changes in the site are stored only in that browser's localStorage. To make a status canonical across devices, update `status` in `subscriptions.json`
 - Update `updatedAt` and `note` when plan or pricing assumptions change
+
+## PWA/site rules
+
+- Keep `dashboard/public/manifest.webmanifest` and `dashboard/public/sw.js`
+- Keep `dashboard/src/main.jsx` service-worker registration intact unless explicitly changing PWA behavior
+- `cashflow.json` and `subscriptions.json` must always be fetched fresh; do not make the service worker serve stale finance data
+- The site must remain usable from a normal browser URL without installation
+- Home-screen installation is optional convenience only; it is not a separate app release channel
 
 ## Validation
 
