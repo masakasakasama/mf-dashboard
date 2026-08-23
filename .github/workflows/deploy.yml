@@ -5,8 +5,13 @@ on:
     branches:
       - main
     paths:
-      - 'dashboard/**'
-      - 'AGENTS.md'
+      - 'dashboard/src/**'
+      - 'dashboard/index.html'
+      - 'dashboard/package.json'
+      - 'dashboard/package-lock.json'
+      - 'dashboard/vite.config.js'
+      - 'dashboard/public/manifest.webmanifest'
+      - 'dashboard/public/favicon.svg'
       - '.github/workflows/deploy.yml'
   schedule:
     - cron: '0 0 * * *'
