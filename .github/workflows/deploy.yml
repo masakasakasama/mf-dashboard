@@ -5,13 +5,8 @@ on:
     branches:
       - main
     paths:
-      - 'dashboard/src/**'
-      - 'dashboard/index.html'
-      - 'dashboard/package.json'
-      - 'dashboard/package-lock.json'
-      - 'dashboard/vite.config.js'
-      - 'dashboard/public/manifest.webmanifest'
-      - 'dashboard/public/favicon.svg'
+      - 'dashboard/**'
+      - 'AGENTS.md'
       - '.github/workflows/deploy.yml'
   schedule:
     - cron: '0 0 * * *'
@@ -52,6 +47,11 @@ jobs:
           MF_PASSWORD: ${{ secrets.MF_PASSWORD }}
         run: npm run scrape
         continue-on-error: true
+
+      - name: Validate finance JSON
+        run: |
+          python -m json.tool dashboard/public/cashflow.json > /dev/null
+          python -m json.tool dashboard/public/subscriptions.json > /dev/null
 
       - name: Install Dashboard Dependencies
         run: npm install
