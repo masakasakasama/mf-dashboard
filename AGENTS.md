@@ -17,42 +17,63 @@ Routine finance updates must be data-only.
 
 Only edit:
 
-- `dashboard/public/cashflow.json` for current balance, confirmed future events, and forecast assumptions
-- `dashboard/public/subscriptions.json` for subscription data
+- `dashboard/public/cashflow.json` for actual balance, confirmed events, and forecast assumptions
+- `dashboard/public/subscriptions.json` for canonical subscription data
 
 Do NOT edit React/CSS/workflows for an ordinary balance or amount update.
 
-The Web UI fetches canonical JSON directly from GitHub `main` with cache-busting, and `dashboard/**` pushes also trigger a GitHub Pages rebuild as a second safety net.
+The Web UI fetches canonical JSON directly from GitHub `main` with cache-busting, and UI/model pushes trigger a GitHub Pages rebuild.
 
 ## Single-source-of-truth cashflow rules
 
 `cashflow.json` is the only editable source of truth for finance inputs.
 
-- `start.balance` = current actual bank balance at `start.date`
-- `events` = confirmed transactions not yet reflected in `start.balance`
-- `forecast.recurring` = assumptions used only for future prediction after confirmed events
-- Never re-add transactions already included in the current actual balance
+- `start.balance` = actual bank balance confirmed at `start.isoDate`
+- `start.date` = display label for that actual-balance date
+- `events` = confirmed transactions not reflected in `start.balance`
+- every confirmed event must include `isoDate: YYYY-MM-DD`
+- `forecast.recurring` = assumptions used only for future prediction
+- Never relabel an old actual balance as today's actual balance
+- Never re-add transactions already included in the actual balance
 - Preserve chronological order in confirmed `events`
 - Positive `amount` = income, negative `amount` = expense
 - Keep `type` as one of `income`, `card`, `fixed`, `special`
 - JALカードSuicaゴールド is the View card payment. Never double-count it as a second generic View payment
 - If a card bill already includes a purchase such as the engagement ring, never add the purchase again as a separate event
 
-Do NOT store copied/derived balance numbers in `flags`, `subtitle`, JSX, or CSS. Derived values go stale and caused prior update omissions.
+Do NOT store copied/derived balance numbers in `flags`, JSX, or CSS. Derived values go stale and caused prior update omissions.
 
 All derived values must come from `dashboard/src/financeModel.js`:
 
-- current balance
+- base actual balance and its date
+- today's date in Asia/Tokyo
+- today's projected balance
 - confirmed-event balances
-- forecast events generated from `forecast.recurring`
-- projected balance and projected date/label
-- minimum balance
-- salary amount/date/label
+- generated forecast events
+- final projected balance and date/label
+- future minimum balance
+- next salary and fixed-cost event
 - chart points
 - summary cards
 - history boundary text
 
-When `start.balance`, any `events[].amount`, or any forecast rule changes, every dependent display must update from the same model automatically.
+When `start.balance`, an event, a forecast rule, or the calendar date changes, every dependent display must update from the model automatically.
+
+## Today and future-display rules
+
+The UI must be explicit about three different concepts:
+
+1. `基準実残高`: the last balance actually confirmed by the user, with its real date
+2. `今日時点見込み`: modelled balance as of the current date in `Asia/Tokyo`
+3. `残高見込み`: future projected balance through the configured forecast horizon
+
+Rules:
+
+- The header must display today's real date dynamically; do not hardcode dates in JSX
+- Home `今後の入出金` must show only events where `isoDate > today`
+- Events on or before today may appear only in the history/detail view, never under a heading that says future/upcoming
+- If the confirmed actual-balance date is old, keep showing that old date as the base actual date instead of pretending it is current
+- The future minimum balance must be calculated from today forward, not from historical points
 
 ## Forecast rules
 
@@ -81,7 +102,7 @@ Forecast amounts are assumptions, not confirmed transactions. If future card bil
 - Add a cache-busting query parameter for every request
 - The deployed copy under GitHub Pages is fallback only
 - Do not restore service-worker caching for finance JSON
-- Do not add duplicate local data constants in React
+- Do not add duplicate local finance constants in React
 
 ## Subscription rules
 
@@ -91,19 +112,24 @@ Forecast amounts are assumptions, not confirmed transactions. If future card bil
 - For USD subscriptions, use `taxRate` and `fxRate`
 - If the actual JPY charge is known, `monthlyJpyOverride` takes priority
 - `status` must be `active`, `review`, or `cancelled`
-- Browser drag-and-drop status is localStorage only; canonical status is in `subscriptions.json`
+- Canonical subscription data is in `subscriptions.json`
+- Browser drag-and-drop status changes are localStorage only
+- User-added subscriptions created from the Web UI are localStorage only unless explicitly promoted into `subscriptions.json`
+- The UI must clearly state when added data is browser-local
 
 ## UI rules
 
 - Do not add buttons that have no meaningful action
 - Keep only useful navigation/actions
+- Home prioritizes `残高見込み`, then supporting actual/today/minimum balances
+- Future cashflow must use a readable transaction-list pattern with date, type, label, confirmed/forecast state, amount, and post-transaction balance
 - Version has one source of truth: `dashboard/package.json`
 - React reads that version rather than duplicating a literal version string
 - Do not inject version text from CSS
 
 ## Deployment rules
 
-- Every `dashboard/**` push triggers validation, build, and GitHub Pages deployment
+- Every UI/model `dashboard/**` push triggers validation, build, and GitHub Pages deployment
 - Finance JSON is also read directly from GitHub `main`, so data updates do not wait on deployment to become available to the running app
 
 ## Validation
@@ -121,4 +147,4 @@ For UI/model/schema changes:
 cd dashboard && npm install && npm run build
 ```
 
-Before finishing, verify mathematically that the model starts from `start.balance`, applies confirmed `events` exactly once, then applies generated forecast events exactly once. Never hand-copy a projected balance into another file.
+Before finishing, verify mathematically that the model starts from `start.balance`, applies each confirmed event exactly once, applies generated forecast events exactly once, and filters the home future list against today's Asia/Tokyo date. Never hand-copy a projected balance into another file.
