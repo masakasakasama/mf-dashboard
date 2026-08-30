@@ -321,9 +321,9 @@ export default function App() {
                 <div className="hero-meta">{projectionLabel} ・ 今日から <span className={projectedDelta >= 0 ? 'money-plus' : 'money-minus'}>{signedYen(projectedDelta)}</span></div>
               </div>
               <div className="today-forecast-block">
-                <span>今日 {todayLabel}</span>
+                <span>今の残高</span>
                 <strong>{yen(todayPoint.balance)}</strong>
-                <small>今日時点の見込み</small>
+                <small>{fullDate(todayIso)} 時点の見込み</small>
               </div>
             </section>
 
@@ -334,9 +334,9 @@ export default function App() {
                 <small>{baseActual.date} に銀行アプリで確認</small>
               </article>
               <article className="snapshot-card accent-card">
-                <span>今日時点見込み</span>
+                <span>今の残高</span>
                 <strong>{yen(todayPoint.balance)}</strong>
-                <small>{fullDate(todayIso)} 時点</small>
+                <small>{fullDate(todayIso)} 時点の見込み</small>
               </article>
               <article className="snapshot-card warning-card">
                 <span>今後の最低残高</span>
