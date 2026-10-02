@@ -129,7 +129,14 @@ export function buildCashflowModel(cashflow, now = new Date()) {
   };
 
   const confirmedEvents = cashflow.events.map((event) => normalizeEvent(event, baseIsoDate, false));
-  const forecastEvents = expandForecast(cashflow.forecast);
+  // Confirmation explicitly identifies the forecast occurrence it replaces.
+  // Equal labels or amounts alone are not proof that two transactions are identical.
+  const confirmedForecastKeys = new Set(confirmedEvents
+    .filter(event => typeof event.forecastRuleId === 'string' && event.forecastRuleId.trim())
+    .map(event => JSON.stringify([event.forecastRuleId, event.isoDate])));
+  const forecastEvents = expandForecast(cashflow.forecast)
+    .filter(event => event.isoDate > baseIsoDate)
+    .filter(event => !confirmedForecastKeys.has(JSON.stringify([event.forecastRuleId, event.isoDate])));
   const allEvents = [...confirmedEvents, ...forecastEvents].sort((a, b) => a.isoDate.localeCompare(b.isoDate));
 
   const timeline = [baseActual];
