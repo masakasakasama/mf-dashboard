@@ -1,11 +1,12 @@
 {
   "name": "mf-dashboard",
-  "version": "1.8.0",
+  "version": "1.8.1",
   "type": "module",
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "test": "node --test tests/financeModel.test.js"
   },
   "dependencies": {
     "lucide-react": "^0.263.1",
