@@ -103,9 +103,18 @@ function expandRecurringRule(rule) {
   return events;
 }
 
-function expandForecast(forecast) {
-  if (!forecast?.enabled || !Array.isArray(forecast.recurring)) return [];
-  return forecast.recurring.flatMap(expandRecurringRule);
+function forecastRules(forecast) {
+  if (!forecast?.enabled) return [];
+  if (!Array.isArray(forecast.recurring)) throw new Error('予測ルールの配列が必要');
+  const ids = new Set();
+  for (const rule of forecast.recurring) {
+    if (typeof rule?.id !== 'string' || !rule.id.trim() || rule.id !== rule.id.trim()) {
+      throw new Error('予測ルールidは空白のない非空文字列が必要');
+    }
+    if (ids.has(rule.id)) throw new Error('予測ルールidが重複');
+    ids.add(rule.id);
+  }
+  return forecast.recurring;
 }
 
 export function buildCashflowModel(cashflow, now = new Date()) {
@@ -128,13 +137,25 @@ export function buildCashflowModel(cashflow, now = new Date()) {
     forecast: false,
   };
 
-  const confirmedEvents = cashflow.events.map((event) => normalizeEvent(event, baseIsoDate, false));
+  const rules = forecastRules(cashflow.forecast);
+  const ruleIds = new Set(rules.map(rule => rule.id));
+  const confirmedEvents = cashflow.events.map((event) => {
+    const id = event.forecastRuleId;
+    // Missing/null means an unlinked actual transaction; never guess its rule.
+    if (id != null && (typeof id !== 'string' || !id.trim() || id !== id.trim())) {
+      throw new Error('forecastRuleIdは空白のない非空文字列が必要');
+    }
+    if (id != null && cashflow.forecast?.enabled && !ruleIds.has(id)) {
+      throw new Error('forecastRuleIdに対応する予測ルールがない');
+    }
+    return normalizeEvent(event, baseIsoDate, false);
+  });
   // Confirmation explicitly identifies the forecast occurrence it replaces.
   // Equal labels or amounts alone are not proof that two transactions are identical.
   const confirmedForecastKeys = new Set(confirmedEvents
     .filter(event => typeof event.forecastRuleId === 'string' && event.forecastRuleId.trim())
     .map(event => JSON.stringify([event.forecastRuleId, event.isoDate])));
-  const forecastEvents = expandForecast(cashflow.forecast)
+  const forecastEvents = rules.flatMap(expandRecurringRule)
     .filter(event => event.isoDate > baseIsoDate)
     .filter(event => !confirmedForecastKeys.has(JSON.stringify([event.forecastRuleId, event.isoDate])));
   const allEvents = [...confirmedEvents, ...forecastEvents].sort((a, b) => a.isoDate.localeCompare(b.isoDate));

@@ -14,18 +14,21 @@ Goal: 金融入力の検証と東京日付境界での一貫したモデル計�
 - forecastRuleId+isoDateで明示紐付けされた確定取引が、その日の予測だけを置き換える。ラベル・金額から同一取引を推測しない。
 - 基準実残高の日付以前の予測を再加算しない。別ルール・別日を保持するfixtureを追加。version1.8.3、実データJSON変更なし。
 
+- 繰り返しrule idの欠落/非文字列/空白/重複を拒否。明示forecastRuleIdの不正/未知参照を拒否し、欠落/nullは未紐付けとして保持。
+- 予測無効時の廃止ruleへの過去リンクを保持。version1.8.4、金融JSON変更なし。
+
 ## Current
-- 8テストと実データモデル算術で検証済み。
+- 11回帰テストとcanonicalモデル算術/東京未来filterで検証済み。
 
 ## Next
-- 繰り返しルールのid欠落・重複入力の扱いを検証し、曖昧なforecastRuleId紐付けを防ぐ。
+- MoneyForward接続資格情報が利用可能になれば収集と本番疎通を確認する。実データの推測変更をしない。
 
 ## Blockers
-- MoneyForward接続資格情報は未提供。実データ収集・本番疎通は未実施。
+- MoneyForward接続資格情報未提供。実データ収集・本番疎通は未実施。
 
 ## Verification
-- npm test 8/8 passed; production build passed (existing chunk-size warning)
-- cashflow/subscriptions JSON validation and canonical model arithmetic/Tokyo boundary/future minimum passed without financial values in output
+- npm test 11/11 passed; production build passed (existing chunk-size warning)
+- cashflow/subscriptions JSON validation passed; canonical arithmetic and Tokyo future filter passed without financial values in output
 - git diff --check passed
 
-Updated at: 2026-10-02T16:42:11.977416+00:00
+Updated at: 2026-10-02T21:01:35.343085+00:00
