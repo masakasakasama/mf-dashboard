@@ -57,3 +57,22 @@ test('monthly-day rejects invalid days before generating transactions', () => {
     assert.throws(() => buildCashflowModel(recurring('monthly-day', day)), /指定日/);
   }
 });
+
+test('explicit confirmed rule occurrence replaces its forecast while other dates and rules remain', () => {
+  const data = recurring('month-end', undefined, '2028-02-01', '2028-03-31');
+  data.events = [{isoDate:'2028-02-29', label:'actual charge', amount:-120, type:'fixed', forecastRuleId:'fixture'}];
+  data.forecast.recurring.push({...data.forecast.recurring[0], id:'independent', amount:-10});
+  const model = buildCashflowModel(data);
+  assert.equal(model.confirmedEvents.length, 1);
+  assert.equal(model.forecastEvents.length, 3);
+  assert.equal(model.projected.balance, 760);
+  assert.ok(!model.forecastEvents.some(e => e.forecastRuleId === 'fixture' && e.isoDate === '2028-02-29'));
+});
+test('unlinked same-day amounts are distinct and forecasts covered by the base balance are omitted', () => {
+  const data = recurring('month-end', undefined, '2028-01-01', '2028-03-31');
+  data.start.isoDate = '2028-01-31';
+  data.events = [{isoDate:'2028-02-29', label:'fixture', amount:-100, type:'fixed'}];
+  const model = buildCashflowModel(data);
+  assert.deepEqual(model.forecastEvents.map(e => e.isoDate), ['2028-02-29','2028-03-31']);
+  assert.equal(model.projected.balance, 700);
+});
