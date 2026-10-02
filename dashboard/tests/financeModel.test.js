@@ -76,3 +76,30 @@ test('unlinked same-day amounts are distinct and forecasts covered by the base b
   assert.deepEqual(model.forecastEvents.map(e => e.isoDate), ['2028-02-29','2028-03-31']);
   assert.equal(model.projected.balance, 700);
 });
+
+
+test('forecast rule identities reject missing, non-string, whitespace and duplicate IDs', () => {
+  for (const id of [undefined, null, true, 1, '', ' ', ' fixture', 'fixture ']) {
+    const data = recurring('month-end');data.forecast.recurring[0].id=id;
+    assert.throws(()=>buildCashflowModel(data),/予測ルールid/);
+  }
+  const data=recurring('month-end');data.forecast.recurring.push({...data.forecast.recurring[0],amount:-1});
+  assert.throws(()=>buildCashflowModel(data),/重複/);
+});
+test('explicit links reject ambiguous or unknown identities without guessing from amounts', () => {
+  for (const id of ['', ' ', 1, false, 'fixture ', 'unknown']) {
+    const data=recurring('month-end');data.events=[{isoDate:'2028-01-31',amount:-100,type:'fixed',forecastRuleId:id}];
+    assert.throws(()=>buildCashflowModel(data),/forecastRuleId/);
+  }
+  for(const id of [undefined,null]) {
+    const data=recurring('month-end');data.events=[{isoDate:'2028-01-31',amount:-100,type:'fixed',forecastRuleId:id}];
+    const before=JSON.stringify(data);const model=buildCashflowModel(data);
+    assert.equal(model.forecastEvents.length,4);assert.equal(model.projected.balance,500);
+    assert.equal(JSON.stringify(data),before);
+  }
+});
+test('disabled forecasting keeps historical links without requiring active rules', () => {
+  const data=recurring('month-end');data.forecast.enabled=false;data.forecast.recurring=[];
+  data.events=[{isoDate:'2028-01-31',amount:-100,type:'fixed',forecastRuleId:'retired-rule'}];
+  const model=buildCashflowModel(data);assert.equal(model.forecastEvents.length,0);assert.equal(model.projected.balance,900);
+});
