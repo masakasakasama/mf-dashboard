@@ -64,6 +64,10 @@ function expandRecurringRule(rule) {
   const start = parseIsoDate(rule.start);
   const end = parseIsoDate(rule.end);
   const events = [];
+  const day = Number(rule.day);
+  if (rule.schedule === 'monthly-day' && ((typeof rule.day !== 'number' && typeof rule.day !== 'string') || String(rule.day).trim() === '' || !Number.isInteger(day) || day < 1 || day > 31)) {
+    throw new Error('予測の指定日は1〜31の整数が必要');
+  }
 
   for (
     let cursor = new Date(Date.UTC(start.getUTCFullYear(), start.getUTCMonth(), 1));
@@ -75,7 +79,9 @@ function expandRecurringRule(rule) {
     if (rule.schedule === 'month-end') {
       eventDate = endOfMonth(cursor.getUTCFullYear(), cursor.getUTCMonth());
     } else if (rule.schedule === 'monthly-day') {
-      eventDate = new Date(Date.UTC(cursor.getUTCFullYear(), cursor.getUTCMonth(), Number(rule.day)));
+      // Fixed calendar days never spill into the next month.
+      if (day > endOfMonth(cursor.getUTCFullYear(), cursor.getUTCMonth()).getUTCDate()) continue;
+      eventDate = new Date(Date.UTC(cursor.getUTCFullYear(), cursor.getUTCMonth(), day));
     } else {
       throw new Error(`未対応の予測スケジュール: ${rule.schedule}`);
     }
