@@ -34,3 +34,26 @@ test('missing and non-finite amounts do not propagate NaN into every balance', (
     assert.throws(() => buildCashflowModel(base), /金額が不正/);
   }
 });
+
+function recurring(schedule, day, start = '2028-01-01', end = '2028-04-30') {
+  return { start: { isoDate: '2028-01-01', balance: 1000 }, events: [],
+    forecast: { enabled: true, recurring: [{ id: 'fixture', label: 'fixture', type: 'fixed',
+      amount: -100, schedule, day, start, end, note: 'test assumption' }] } };
+}
+test('monthly-day 31 skips short months without rolling a charge forward', () => {
+  const model = buildCashflowModel(recurring('monthly-day', 31));
+  assert.deepEqual(model.timeline.slice(1).map(e => e.isoDate), ['2028-01-31', '2028-03-31']);
+  assert.equal(model.projected.balance, 800);
+});
+test('month-end includes leap February once with inclusive boundaries', () => {
+  const model = buildCashflowModel(recurring('month-end', undefined, '2028-02-01', '2028-03-31'));
+  assert.deepEqual(model.timeline.slice(1).map(e => e.isoDate), ['2028-02-29', '2028-03-31']);
+  assert.equal(model.projected.balance, 800);
+  const clipped = buildCashflowModel(recurring('month-end', undefined, '2028-02-01', '2028-03-30'));
+  assert.deepEqual(clipped.timeline.slice(1).map(e => e.isoDate), ['2028-02-29']);
+});
+test('monthly-day rejects invalid days before generating transactions', () => {
+  for (const day of [undefined, null, true, false, '', 0, -1, 32, 1.5, 'unknown']) {
+    assert.throws(() => buildCashflowModel(recurring('monthly-day', day)), /指定日/);
+  }
+});
