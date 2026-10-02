@@ -1,7 +1,16 @@
 function parseIsoDate(value) {
-  const [year, month, day] = String(value).split('-').map(Number);
-  if (!year || !month || !day) throw new Error(`日付が不正: ${value}`);
-  return new Date(Date.UTC(year, month - 1, day));
+  if (typeof value !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(value)) throw new Error(`日付が不正: ${value}`);
+  const [year, month, day] = value.split('-').map(Number);
+  const date = new Date(Date.UTC(year, month - 1, day));
+  if (!Number.isFinite(date.getTime()) || date.toISOString().slice(0, 10) !== value) throw new Error(`日付が不正: ${value}`);
+  return date;
+}
+
+function amountValue(value) {
+  if ((typeof value !== 'number' && typeof value !== 'string') || String(value).trim() === '' || !Number.isFinite(Number(value))) {
+    throw new Error('残高または入出金額が不正');
+  }
+  return Number(value);
 }
 
 function formatDate(date) {
@@ -42,10 +51,11 @@ function inferIsoDate(monthDay, baseIsoDate) {
 function normalizeEvent(event, baseIsoDate, forecast = false) {
   const isoDate = event.isoDate || inferIsoDate(event.date, baseIsoDate);
   if (!isoDate) throw new Error(`${event.label || 'イベント'}の日付を解決できない`);
+  parseIsoDate(isoDate);
   return {
     ...event,
     isoDate,
-    amount: Number(event.amount),
+    amount: amountValue(event.amount),
     forecast,
   };
 }
@@ -76,7 +86,7 @@ function expandRecurringRule(rule) {
       date: formatDate(eventDate),
       isoDate: toIsoDate(eventDate),
       label: rule.label,
-      amount: Number(rule.amount),
+      amount: amountValue(rule.amount),
       type: rule.type,
       note: rule.note,
       forecast: true,
@@ -99,13 +109,14 @@ export function buildCashflowModel(cashflow, now = new Date()) {
 
   const baseIsoDate = cashflow.start.isoDate;
   if (!baseIsoDate) throw new Error('start.isoDate が必要');
+  parseIsoDate(baseIsoDate);
 
   const baseActual = {
     date: cashflow.start.date,
     isoDate: baseIsoDate,
     label: cashflow.start.label,
     amount: 0,
-    balance: Number(cashflow.start.balance),
+    balance: amountValue(cashflow.start.balance),
     type: 'base',
     note: cashflow.start.note,
     forecast: false,
