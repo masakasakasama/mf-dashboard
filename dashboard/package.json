@@ -6,7 +6,10 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "test": "node --test tests/financeModel.test.js"
+    "test": "node --test tests/financeModel.test.js tests/financeCrypto.test.js",
+    "data:decrypt": "node scripts/finance-data.mjs decrypt",
+    "data:encrypt": "node scripts/finance-data.mjs encrypt",
+    "data:verify": "node scripts/finance-data.mjs verify"
   },
   "dependencies": {
     "lucide-react": "^0.263.1",

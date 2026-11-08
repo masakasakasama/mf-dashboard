@@ -48,18 +48,37 @@ jobs:
         run: npm run scrape
         continue-on-error: true
 
-      - name: Validate finance JSON
+      # The Pages site is public: scraped data is published only as ciphertext,
+      # and never at all when the passphrase secret is missing.
+      - name: Encrypt scraped data
+        env:
+          DASHBOARD_PASSPHRASE: ${{ secrets.DASHBOARD_PASSPHRASE }}
         run: |
-          python -m json.tool dashboard/public/cashflow.json > /dev/null
-          python -m json.tool dashboard/public/subscriptions.json > /dev/null
+          if [ -f dashboard/public/data.json ] && [ -n "$DASHBOARD_PASSPHRASE" ]; then
+            node dashboard/scripts/finance-data.mjs encrypt-file dashboard/public/data.json dashboard/public/data.enc.json
+          fi
+          rm -f dashboard/public/data.json dashboard/public/cashflow.json dashboard/public/subscriptions.json
+
+      - name: Validate finance data is encrypted
+        run: node dashboard/scripts/finance-data.mjs verify
 
       - name: Install Dashboard Dependencies
         run: npm install
         working-directory: dashboard
 
+      - name: Test Dashboard
+        run: npm test
+        working-directory: dashboard
+
       - name: Build Dashboard
         run: npm run build
         working-directory: dashboard
+
+      - name: Refuse to publish plaintext finance data
+        run: |
+          if ls dashboard/dist | grep -E '^(cashflow|subscriptions|data)\.json$'; then
+            echo "plaintext finance JSON found in dist" && exit 1
+          fi
 
       - name: Setup Pages
         uses: actions/configure-pages@v4

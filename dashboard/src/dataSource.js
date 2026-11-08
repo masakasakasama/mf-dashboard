@@ -1,3 +1,5 @@
+import { decryptJson } from './financeCrypto.js';
+
 const RAW_DATA_BASE = 'https://raw.githubusercontent.com/masakasakasama/mf-dashboard/main/dashboard/public';
 
 async function fetchJson(url) {
@@ -27,9 +29,13 @@ export async function fetchFreshDataFile(fileName) {
   throw new Error(`${fileName} の読み込みに失敗: ${lastError?.message || 'unknown error'}`);
 }
 
-export function loadDashboardData() {
+export async function loadDashboardData(passphrase) {
+  const [cashflow, subscriptions] = await Promise.all([
+    fetchFreshDataFile('cashflow.enc.json'),
+    fetchFreshDataFile('subscriptions.enc.json'),
+  ]);
   return Promise.all([
-    fetchFreshDataFile('cashflow.json'),
-    fetchFreshDataFile('subscriptions.json'),
+    decryptJson(cashflow, passphrase),
+    decryptJson(subscriptions, passphrase),
   ]);
 }

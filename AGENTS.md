@@ -15,10 +15,22 @@ This task belongs ONLY to the repository `masakasakasama/mf-dashboard`.
 
 Routine finance updates must be data-only.
 
-Only edit:
+This repository and its GitHub Pages site are PUBLIC. Finance data is committed and
+published only as encrypted `dashboard/public/*.enc.json`. Plaintext lives in the
+git-ignored `dashboard/private/` folder and must never be committed or copied into
+`dashboard/public/`, commit messages, PR text, CODEX_STATE.md or any other file.
 
-- `dashboard/public/cashflow.json` for actual balance, confirmed events, and forecast assumptions
-- `dashboard/public/subscriptions.json` for canonical subscription data
+Update steps (from `dashboard/`, with `DASHBOARD_PASSPHRASE` set in the environment):
+
+1. `npm run data:decrypt` (writes `private/cashflow.json` and `private/subscriptions.json`)
+2. Edit only those two private files
+3. `npm run data:encrypt` then `npm run data:verify`
+4. Commit only `public/cashflow.enc.json` / `public/subscriptions.enc.json`, with a
+   commit message that contains no amounts (e.g. "Update finance data")
+
+If `DASHBOARD_PASSPHRASE` is not available, stop and ask the user; never fall back to plaintext.
+
+In the rules below, `cashflow.json` / `subscriptions.json` mean the decrypted private files.
 
 Do NOT edit React/CSS/workflows for an ordinary balance or amount update.
 
@@ -98,7 +110,7 @@ Forecast amounts are assumptions, not confirmed transactions. If future card bil
 
 ## Data freshness architecture
 
-- `dashboard/src/dataSource.js` fetches canonical JSON from `raw.githubusercontent.com/.../main/dashboard/public`
+- `dashboard/src/dataSource.js` fetches the encrypted `*.enc.json` from `raw.githubusercontent.com/.../main/dashboard/public` and decrypts it in the browser with the passphrase the user enters
 - Add a cache-busting query parameter for every request
 - The deployed copy under GitHub Pages is fallback only
 - Do not restore service-worker caching for finance JSON
@@ -137,8 +149,9 @@ Forecast amounts are assumptions, not confirmed transactions. If future card bil
 For every finance change:
 
 ```bash
-python -m json.tool dashboard/public/cashflow.json > /dev/null
-python -m json.tool dashboard/public/subscriptions.json > /dev/null
+python -m json.tool dashboard/private/cashflow.json > /dev/null
+python -m json.tool dashboard/private/subscriptions.json > /dev/null
+cd dashboard && npm run data:encrypt && npm run data:verify && npm test
 ```
 
 For UI/model/schema changes:

@@ -29,3 +29,9 @@ scraper/error-screenshot.png
 
 # Data (optional - コメントアウトでコミット可)
 # dashboard/public/data.json
+
+# Finance data: only *.enc.json may be committed (see AGENTS.md)
+dashboard/private/
+dashboard/public/cashflow.json
+dashboard/public/subscriptions.json
+dashboard/public/data.json

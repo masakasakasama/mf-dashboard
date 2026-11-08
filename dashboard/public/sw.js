@@ -1,5 +1,5 @@
 const CACHE_NAME = 'money-dashboard-shell-v1.4.0';
-const DATA_FILES = ['cashflow.json', 'subscriptions.json'];
+const DATA_FILES = ['cashflow.enc.json', 'subscriptions.enc.json'];
 
 self.addEventListener('install', (event) => {
   self.skipWaiting();

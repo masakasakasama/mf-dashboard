@@ -16,6 +16,7 @@ import {
   Eye,
   GripVertical,
   Home,
+  Lock,
   RefreshCw,
   RotateCcw,
   ShieldCheck,
@@ -29,6 +30,7 @@ import { buildCashflowModel } from './financeModel.js';
 
 const APP_VERSION = packageMeta.version;
 const STATUS_STORAGE_KEY = 'mf-dashboard-subscription-status';
+const PASSPHRASE_STORAGE_KEY = 'mf-dashboard-passphrase';
 const CUSTOM_SUB_STORAGE_KEY = 'mf-dashboard-custom-subscriptions';
 
 const yen = (value) => `${new Intl.NumberFormat('ja-JP', { maximumFractionDigits: 0 }).format(value)}円`;
@@ -155,7 +157,15 @@ export default function App() {
   const [formError, setFormError] = useState('');
   const [error, setError] = useState('');
 
+  const [passphrase, setPassphrase] = useState(() => {
+    try { return localStorage.getItem(PASSPHRASE_STORAGE_KEY) || ''; } catch { return ''; }
+  });
+  const [passphraseInput, setPassphraseInput] = useState('');
+  const [rememberPassphrase, setRememberPassphrase] = useState(true);
+  const [unlockError, setUnlockError] = useState('');
+
   useEffect(() => {
+    if (!passphrase) return;
     let storedCustom = [];
     try {
       storedCustom = JSON.parse(localStorage.getItem(CUSTOM_SUB_STORAGE_KEY) || '[]');
@@ -164,7 +174,7 @@ export default function App() {
       storedCustom = [];
     }
 
-    loadDashboardData()
+    loadDashboardData(passphrase)
       .then(([cashflowData, subscriptionData]) => {
         setCashflow(cashflowData);
         setSubscriptions(subscriptionData);
@@ -178,8 +188,29 @@ export default function App() {
           setStatusMap(canonical);
         }
       })
-      .catch((err) => setError(err.message));
-  }, []);
+      .catch((err) => {
+        if (err.code === 'BAD_PASSPHRASE') {
+          try { localStorage.removeItem(PASSPHRASE_STORAGE_KEY); } catch {}
+          setUnlockError(err.message);
+          setPassphrase('');
+          return;
+        }
+        setError(err.message);
+      });
+  }, [passphrase]);
+
+  const unlock = (event) => {
+    event.preventDefault();
+    const value = passphraseInput.trim();
+    if (!value) return;
+    setUnlockError('');
+    try {
+      if (rememberPassphrase) localStorage.setItem(PASSPHRASE_STORAGE_KEY, value);
+      else localStorage.removeItem(PASSPHRASE_STORAGE_KEY);
+    } catch {}
+    setPassphraseInput('');
+    setPassphrase(value);
+  };
 
   const cashflowModelResult = useMemo(() => {
     if (!cashflow) return { model: null, modelError: '' };
@@ -198,6 +229,32 @@ export default function App() {
       monthlyJpy: subscriptionMonthlyJpy(sub),
     }));
   }, [subscriptions, customSubscriptions, statusMap]);
+
+  if (!passphrase) {
+    return (
+      <div className="app-shell error-shell">
+        <form className="error-card" onSubmit={unlock}>
+          <Lock size={28} />
+          <h1>パスワードを入力</h1>
+          <p>家計データは暗号化して公開しています。</p>
+          <input
+            type="password"
+            autoComplete="current-password"
+            value={passphraseInput}
+            onChange={(e) => setPassphraseInput(e.target.value)}
+            aria-label="パスワード"
+            style={{ width: '100%', margin: '12px 0', padding: '10px 12px', borderRadius: 10, border: '1px solid rgba(255,255,255,.2)', background: 'rgba(0,0,0,.2)', color: 'inherit' }}
+          />
+          <label style={{ display: 'flex', gap: 8, alignItems: 'center', fontSize: 13 }}>
+            <input type="checkbox" checked={rememberPassphrase} onChange={(e) => setRememberPassphrase(e.target.checked)} />
+            この端末で記憶する
+          </label>
+          {unlockError && <p role="alert">{unlockError}</p>}
+          <button type="submit" style={{ marginTop: 12, width: '100%', padding: '10px 12px', borderRadius: 10 }}>開く</button>
+        </form>
+      </div>
+    );
+  }
 
   const visibleError = error || cashflowModelResult.modelError;
   if (visibleError) {
